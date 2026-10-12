@@ -1,0 +1,13 @@
+# Normalize all text files to LF in the repository and in working trees on every OS.
+* text=auto eol=lf
+
+# Shell scripts must never be checked out with CRLF, or they fail inside Linux containers.
+*.sh text eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
