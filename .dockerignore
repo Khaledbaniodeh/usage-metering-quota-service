@@ -1,8 +1,13 @@
-# Version control and CI metadata
+# The image build copies only package files, tsconfig files and src/ explicitly; this file keeps
+# everything else (and every secret) out of the build context.
+
+# Version control, CI and editor metadata
 .git/
 .github/
+.idea/
+.vscode/
 
-# Dependencies and build output are produced inside the image
+# Dependencies and outputs are produced inside the image
 node_modules/
 dist/
 coverage/
@@ -11,16 +16,19 @@ coverage/
 .env
 .env.*
 
-# Not needed to build or run the service or the example client
+# Not needed to build or run the service
 docs/
 load/
 tests/
 *.md
+compose*.yaml
+eslint.config.js
+vitest.config.ts
+.prettierrc.json
+.prettierignore
 
-# Logs, editors and operating-system files
+# Logs and operating-system files
 *.log
 npm-debug.log*
-.idea/
-.vscode/
 .DS_Store
 Thumbs.db
