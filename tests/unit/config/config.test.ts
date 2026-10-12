@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { ConfigError, loadConfig, type Environment } from "../../../src/config/config.js";
+import {
+  ConfigError,
+  loadConfig,
+  loadConfigOrReport,
+  type Environment,
+} from "../../../src/config/config.js";
 
 const VALID_DATABASE_URL = "postgres://app_user:s3cret-value@db.internal:5432/usage_metering";
 
@@ -147,5 +152,29 @@ describe("loadConfig", () => {
       "DB_POOL_MAX must be an integer between 1 and 100",
     ]);
     expect(error.message).toContain("Invalid configuration:");
+  });
+});
+
+describe("loadConfigOrReport", () => {
+  it("returns the configuration without reporting anything when it is valid", () => {
+    const reports: string[] = [];
+
+    const config = loadConfigOrReport({ DATABASE_URL: VALID_DATABASE_URL }, (message) =>
+      reports.push(message),
+    );
+
+    expect(config?.database.url).toBe(VALID_DATABASE_URL);
+    expect(reports).toEqual([]);
+  });
+
+  it("reports every problem and returns undefined when the configuration is invalid", () => {
+    const reports: string[] = [];
+
+    const config = loadConfigOrReport({ PORT: "x" }, (message) => reports.push(message));
+
+    expect(config).toBeUndefined();
+    expect(reports).toEqual([
+      "Invalid configuration:\n- PORT must be an integer between 1 and 65535\n- DATABASE_URL is required",
+    ]);
   });
 });

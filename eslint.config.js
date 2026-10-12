@@ -31,6 +31,16 @@ export default defineConfig(
     },
   },
   {
+    // Tests create and read fixture files inside temporary directories they create themselves
+    // (fs.mkdtemp under the OS temp folder); those paths are never derived from external input.
+    // Production code keeps this rule enabled.
+    name: "project/tests",
+    files: ["tests/**/*.ts"],
+    rules: {
+      "security/detect-non-literal-fs-filename": "off",
+    },
+  },
+  {
     // Plain JavaScript files (only this config today) are not part of the TypeScript
     // project, so type-aware rules cannot run on them.
     name: "project/javascript-files",

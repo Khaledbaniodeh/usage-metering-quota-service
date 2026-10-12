@@ -87,6 +87,25 @@ export function loadConfig(env: Environment): AppConfig {
   return config;
 }
 
+/**
+ * Entry-point helper: returns the configuration, or reports every configuration problem through
+ * `report` and returns undefined so the caller can exit with a failure code.
+ */
+export function loadConfigOrReport(
+  env: Environment,
+  report: (message: string) => void,
+): AppConfig | undefined {
+  try {
+    return loadConfig(env);
+  } catch (error) {
+    if (error instanceof ConfigError) {
+      report(error.message);
+      return undefined;
+    }
+    throw error;
+  }
+}
+
 function readInteger(
   name: string,
   raw: string | undefined,

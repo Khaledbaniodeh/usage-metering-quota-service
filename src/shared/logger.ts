@@ -18,11 +18,13 @@ const REDACTED_PATHS = [
   "*.password",
 ];
 
-export function createLogger(level: LogLevel): Logger {
-  return pino({
+/** Creates the structured JSON logger; `destination` defaults to stdout. */
+export function createLogger(level: LogLevel, destination?: pino.DestinationStream): Logger {
+  const options: pino.LoggerOptions = {
     level,
     base: { service: "usage-metering-quota-service" },
     timestamp: pino.stdTimeFunctions.isoTime,
     redact: { paths: REDACTED_PATHS, censor: "[REDACTED]" },
-  });
+  };
+  return destination === undefined ? pino(options) : pino(options, destination);
 }
