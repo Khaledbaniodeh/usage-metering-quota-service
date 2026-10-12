@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApp, type App } from "../../../src/app/build-app.js";
 import type { ReadinessResult } from "../../../src/modules/health/health.routes.js";
+import { createLogger } from "../../../src/shared/logger.js";
 import { createSilentLogger } from "../../helpers/logger.js";
 
 // These tests exercise HTTP routing, the error contract and OpenAPI generation with an injected
@@ -113,5 +114,38 @@ describe("application contract", () => {
     const response = await instance.inject({ method: "GET", url: "/docs" });
 
     expect([200, 302]).toContain(response.statusCode);
+  });
+});
+
+describe("request logging", () => {
+  it("keeps successful health probes out of the logs but still logs other requests", async () => {
+    const lines: string[] = [];
+    const instance = await buildApp({
+      logger: createLogger("info", { write: (line: string) => lines.push(line) }),
+      checkReadiness: () => Promise.resolve({ ready: true }),
+    });
+    app = instance;
+
+    await instance.inject({ method: "GET", url: "/health/live" });
+    await instance.inject({ method: "GET", url: "/health/ready" });
+    expect(lines).toEqual([]);
+
+    await instance.inject({ method: "GET", url: "/docs/json" });
+    expect(lines.some((line) => line.includes('"msg":"incoming request"'))).toBe(true);
+  });
+
+  it("still logs a failed readiness check as a warning", async () => {
+    const lines: string[] = [];
+    const instance = await buildApp({
+      logger: createLogger("info", { write: (line: string) => lines.push(line) }),
+      checkReadiness: () => Promise.resolve({ ready: false, reason: "DATABASE_UNAVAILABLE" }),
+    });
+    app = instance;
+
+    await instance.inject({ method: "GET", url: "/health/ready" });
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('"msg":"readiness check failed"');
+    expect(lines[0]).toContain('"reason":"DATABASE_UNAVAILABLE"');
   });
 });

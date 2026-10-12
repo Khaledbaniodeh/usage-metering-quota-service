@@ -32,6 +32,13 @@ const ReadyResponseSchema = Type.Object(
   },
 );
 
+/**
+ * Probes run every few seconds (container health checks, orchestrators), so their per-request
+ * "incoming request"/"request completed" lines are suppressed; warnings such as a failed readiness
+ * check are still logged.
+ */
+const PROBE_LOG_LEVEL = "warn";
+
 export const healthRoutes: FastifyPluginAsyncTypebox<HealthRoutesOptions> = (app, options) => {
   app.addHook("onSend", async (_request, reply) => {
     void reply.header("cache-control", "no-store");
@@ -40,6 +47,7 @@ export const healthRoutes: FastifyPluginAsyncTypebox<HealthRoutesOptions> = (app
   app.get(
     "/health/live",
     {
+      logLevel: PROBE_LOG_LEVEL,
       schema: {
         tags: ["health"],
         summary: "Liveness probe",
@@ -53,6 +61,7 @@ export const healthRoutes: FastifyPluginAsyncTypebox<HealthRoutesOptions> = (app
   app.get(
     "/health/ready",
     {
+      logLevel: PROBE_LOG_LEVEL,
       schema: {
         tags: ["health"],
         summary: "Readiness probe",
