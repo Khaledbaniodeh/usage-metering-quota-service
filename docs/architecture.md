@@ -43,6 +43,30 @@ HTTP routes → application services → domain rules (pure)
 The domain layer has no dependencies. Only the composition root constructs objects; modules have
 no import-time side effects. The example client talks to the service over HTTP only.
 
+## Source layout
+
+Directories are created when a phase adds real code to them. As of Phase 1:
+
+```
+src/
+  main.ts              process entry: configuration, logger, startup, signals, shutdown deadline
+  app/                 Fastify construction (build-app), error contract, OpenAPI, server lifecycle
+  config/              the single configuration parser (every environment variable is read here)
+  db/                  pool, type conversions, migration runner and CLI, readiness check
+    migrations/        forward-only SQL files (NNNN_name.sql), copied into dist/ by the build
+  modules/
+    health/            liveness and readiness routes; owns the readiness port
+  shared/              cross-cutting pieces with one clear owner each: logger, HTTP error contract
+tests/
+  unit/                no database; mirrors src/
+  integration/         real PostgreSQL; mirrors src/
+  helpers/             test database lifecycle and guard, fixtures, silent logger
+```
+
+Feature code (accounts, plans, users, usage, consumption) will live in `src/modules/<feature>/`,
+each module containing its routes, service and repository. SQL migrations stay in `src/db/migrations/`,
+separate from the runtime queries in module repositories.
+
 ## Data model summary
 
 | Table                   | Purpose and key constraints                                                                                                                                                                                                      |
@@ -65,6 +89,23 @@ Predefined plans are inserted by a migration:
 
 New accounts receive Starter and new users receive Basic. Custom-plan ownership ("predefined or
 owned by this account") is enforced atomically by the assignment statement itself.
+
+Database-level protections implemented in Phase 1 (`src/db/migrations/0001_baseline_schema.sql`):
+
+- **Plans:** a trigger keeps predefined plans read-only, freezes every plan's id, scope, owner,
+  code and creation time, and forbids deleting plans. (This also makes scope immutable for plans
+  that are not yet assigned, which was previously listed as a deferred option.)
+- **Decision history:** a trigger rejects every `UPDATE` and `DELETE` on `consume_decisions`.
+  Besides the accepted-within-limits check, a second check requires every rejection to name a rule
+  that its own snapshot violates, and the stored month must be the UTC month of `processed_at`.
+- **Timestamps:** every `*_at` column is `timestamptz`. Business timestamps have no database
+  default; they come from the application's single UTC clock. Only `schema_migrations.applied_at`
+  defaults to `now()`.
+- **Type conversions:** the pool converts `BIGINT` to a JavaScript number and fails on values
+  beyond the safe-integer range, and keeps `DATE` values as `YYYY-MM-DD` strings, so a month is
+  never shifted by the host time zone.
+
+The project targets PostgreSQL 16 (Compose and CI use `postgres:16.15-alpine`).
 
 ## Consume transaction
 
@@ -102,19 +143,38 @@ only from the stored decision record, so a retry receives exactly the same body.
   the same `requestId` is safe.
 - **Clock:** one injected application clock, UTC, millisecond precision, captured once per request.
 
+## Startup, health and shutdown
+
+- **Startup** (`src/app/server.ts`): load the migration files, migrate on a dedicated connection,
+  open the pool, build the application, listen on `0.0.0.0`. A migration or database failure is
+  fatal: whatever was created is closed and the process exits with code 1.
+- **Migrations** (`src/db/migrator.ts`, shared by startup and `npm run db:migrate`): files are
+  applied in byte order, each in one transaction together with its `schema_migrations` row (name,
+  SHA-256 checksum of the LF-normalized file, applied time). A session-level advisory lock with a
+  bounded wait serializes concurrent instances. Before applying anything the runner requires the
+  applied migrations to be exactly the first files with identical checksums, so an edited, removed
+  or reordered migration aborts the run.
+- **Health:** `GET /health/live` never touches the database. `GET /health/ready` returns 200 only
+  when a small read of `schema_migrations` through the pool succeeds and matches the shipped
+  migrations exactly; otherwise 503 with the standard error body. Successful probes are not
+  request-logged.
+- **Shutdown** (`src/main.ts`): on SIGINT or SIGTERM the server stops accepting connections,
+  waits for in-flight requests, then closes the pool. A deadline (`SHUTDOWN_TIMEOUT_MS`) forces
+  exit code 1 if shutdown hangs.
+
 ## Phased implementation plan
 
-| Phase | Scope                                                                                                                         |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 0     | Project scaffolding and quality gates                                                                                         |
-| 1     | Configuration, logging, database pool, migration runner, schema and predefined plans, health endpoint, Dockerfile and Compose |
-| 2     | Account creation, API keys, authentication, error catalogue, isolation test harness                                           |
-| 3     | Plans and users, plan assignment and switching                                                                                |
-| 4     | Consume engine, idempotency, concurrency tests                                                                                |
-| 5     | Usage and history endpoints, cursor pagination                                                                                |
-| 6     | Example client and end-to-end Compose verification in CI                                                                      |
-| 7     | Load testing, invariant checks, bottleneck analysis                                                                           |
-| 8     | Final documentation and requirements traceability review                                                                      |
+| Phase | Scope                                                                                                                          |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------ |
+| 0     | Project scaffolding and quality gates                                                                                          |
+| 1     | Configuration, logging, database pool, migration runner, schema and predefined plans, health endpoints, Dockerfile and Compose |
+| 2     | Account creation, API keys, authentication, error catalogue, isolation test harness                                            |
+| 3     | Plans and users, plan assignment and switching                                                                                 |
+| 4     | Consume engine, idempotency, concurrency tests                                                                                 |
+| 5     | Usage and history endpoints, cursor pagination                                                                                 |
+| 6     | Example client and end-to-end Compose verification in CI                                                                       |
+| 7     | Load testing, invariant checks, bottleneck analysis                                                                            |
+| 8     | Final documentation and requirements traceability review                                                                       |
 
 ## Deferred optional features
 
@@ -122,7 +182,6 @@ only from the stored decision record, so a retry receives exactly the same body.
 - Moving the locked critical section into a single SQL round trip, only if load tests show the
   lock-hold time dominates.
 - Fully declarative custom-plan ownership through a sentinel owner key.
-- A trigger that makes plan scope immutable even for unreferenced plans.
 - Reporting every violated rule instead of the first one.
 - UUIDv7 identifiers and CI badges.
 
