@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import type { Queryable } from "../../db/pool.js";
 import type { Clock } from "../../shared/clock.js";
 import { AppError } from "../../shared/http-errors.js";
+import { assignedOrThrow } from "../plans/plan-assignment.js";
 import {
+  assignUserPlan,
   findUser,
   insertUserWithPredefinedPlan,
   listUsers,
@@ -16,6 +18,7 @@ export interface UsersService {
   readonly createUser: (accountId: string, name: string) => Promise<UserRecord>;
   readonly getUser: (accountId: string, userId: string) => Promise<UserRecord>;
   readonly listUsers: (accountId: string) => Promise<UserRecord[]>;
+  readonly assignPlan: (accountId: string, userId: string, planId: string) => Promise<UserRecord>;
 }
 
 export interface UsersServiceDependencies {
@@ -55,5 +58,8 @@ export function createUsersService({ db, clock }: UsersServiceDependencies): Use
     },
 
     listUsers: (accountId) => listUsers(db, accountId),
+
+    assignPlan: async (accountId, userId, planId) =>
+      assignedOrThrow(await assignUserPlan(db, accountId, userId, planId, clock()), userNotFound),
   };
 }

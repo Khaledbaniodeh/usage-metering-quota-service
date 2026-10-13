@@ -2,6 +2,7 @@ import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import type { FastifyRequest } from "fastify";
 import { errorResponseSchemas } from "../../shared/http-errors.js";
 import { requireAuthenticatedAccount } from "../auth/authenticate.js";
+import { AssignPlanBodySchema } from "../plans/plan.schemas.js";
 import {
   AccountSchema,
   CreateAccountBodySchema,
@@ -78,6 +79,38 @@ export const accountRoutes: FastifyPluginAsyncTypebox<AccountRoutesOptions> = (a
     async (request) => {
       const { id } = requireAuthenticatedAccount(request);
       return toAccountResponse(await options.accounts.getAccount(id));
+    },
+  );
+
+  app.put(
+    "/v1/account/plan",
+    {
+      onRequest: options.authenticate,
+      schema: {
+        tags: ["accounts"],
+        summary: "Switch the account plan",
+        description:
+          "Assigns a predefined account plan or one of the account's own custom ACCOUNT plans. Unknown plans and other accounts' plans are both 404; a USER plan is 409 PLAN_SCOPE_MISMATCH. Assigning the current plan again succeeds and changes nothing, updatedAt included.",
+        security: [{ apiKey: [] }],
+        body: AssignPlanBodySchema,
+        response: {
+          200: AccountSchema,
+          ...errorResponseSchemas(
+            "VALIDATION_ERROR",
+            "BAD_REQUEST",
+            "UNAUTHORIZED",
+            "NOT_FOUND",
+            "PLAN_SCOPE_MISMATCH",
+            "PAYLOAD_TOO_LARGE",
+            "UNSUPPORTED_MEDIA_TYPE",
+            "INTERNAL_ERROR",
+          ),
+        },
+      },
+    },
+    async (request) => {
+      const { id } = requireAuthenticatedAccount(request);
+      return toAccountResponse(await options.accounts.assignPlan(id, request.body.planId));
     },
   );
 

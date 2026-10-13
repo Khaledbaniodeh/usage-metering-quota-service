@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Queryable } from "../../db/pool.js";
 import type { Clock } from "../../shared/clock.js";
 import { AppError } from "../../shared/http-errors.js";
+import { planNotFound } from "./plan-assignment.js";
 import type { PlanScope } from "./plan.schemas.js";
 import {
   insertCustomPlan,
@@ -48,7 +49,7 @@ export function createPlansService({ db, clock }: PlansServiceDependencies): Pla
         case "read-only":
           throw new AppError("PLAN_READ_ONLY");
         case "not-found":
-          throw new AppError("NOT_FOUND", "Plan not found");
+          throw planNotFound();
       }
     },
   };

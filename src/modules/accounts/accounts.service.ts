@@ -4,8 +4,10 @@ import { isUniqueViolation } from "../../db/postgres-errors.js";
 import type { Clock } from "../../shared/clock.js";
 import { AppError } from "../../shared/http-errors.js";
 import { generateApiKey, hashApiKey, type RandomBytesSource } from "../auth/api-key.js";
+import { assignedOrThrow } from "../plans/plan-assignment.js";
 import {
   API_KEY_HASH_CONSTRAINT,
+  assignAccountPlan,
   findAccountById,
   insertAccountWithPredefinedPlan,
   type AccountRecord,
@@ -29,12 +31,17 @@ export interface CreatedAccount {
 export interface AccountsService {
   readonly createAccount: (name: string) => Promise<CreatedAccount>;
   readonly getAccount: (accountId: string) => Promise<AccountRecord>;
+  readonly assignPlan: (accountId: string, planId: string) => Promise<AccountRecord>;
 }
 
 export interface AccountsServiceDependencies {
   readonly db: Queryable;
   readonly clock: Clock;
   readonly randomBytes?: RandomBytesSource;
+}
+
+function accountNotFound(): AppError {
+  return new AppError("NOT_FOUND", "Account not found");
 }
 
 export function createAccountsService(dependencies: AccountsServiceDependencies): AccountsService {
@@ -77,10 +84,13 @@ export function createAccountsService(dependencies: AccountsServiceDependencies)
   const getAccount = async (accountId: string): Promise<AccountRecord> => {
     const account = await findAccountById(db, accountId);
     if (account === undefined) {
-      throw new AppError("NOT_FOUND", "Account not found");
+      throw accountNotFound();
     }
     return account;
   };
 
-  return { createAccount, getAccount };
+  const assignPlan = async (accountId: string, planId: string): Promise<AccountRecord> =>
+    assignedOrThrow(await assignAccountPlan(db, accountId, planId, clock()), accountNotFound);
+
+  return { createAccount, getAccount, assignPlan };
 }

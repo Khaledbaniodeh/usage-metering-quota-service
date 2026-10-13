@@ -1,4 +1,9 @@
 import type { Queryable } from "../../db/pool.js";
+import {
+  toPlanAssignment,
+  type AssignmentResultRow,
+  type PlanAssignment,
+} from "../plans/plan-assignment.js";
 import type { PlanSummary } from "../plans/plan.schemas.js";
 import {
   planSummaryColumns,
@@ -87,6 +92,48 @@ export async function listUsers(db: Queryable, accountId: string): Promise<UserR
     [accountId],
   );
   return result.rows.map(toUserRecord);
+}
+
+/**
+ * Assigns a plan to a user of the account in one statement. Only a user of this account can be
+ * changed, and only to a predefined plan or the account's own custom plan with scope USER.
+ * Reassigning the current plan succeeds without changing anything, updated_at included; a real
+ * change sets updated_at to `now`.
+ */
+export async function assignUserPlan(
+  db: Queryable,
+  accountId: string,
+  userId: string,
+  planId: string,
+  now: Date,
+): Promise<PlanAssignment<UserRecord>> {
+  const result = await db.query<AssignmentResultRow<UserRow>>(
+    `WITH target AS (
+       SELECT id FROM users WHERE account_id = $1 AND id = $2
+     ),
+     plan AS (
+       SELECT id, code, name, scope, monthly_allowance, max_units_per_request
+       FROM plans
+       WHERE id = $3 AND (owner_account_id IS NULL OR owner_account_id = $1)
+     ),
+     updated AS (
+       UPDATE users u
+       SET plan_id = plan.id,
+           updated_at = CASE WHEN u.plan_id = plan.id THEN u.updated_at ELSE $4 END
+       FROM plan
+       WHERE u.account_id = $1 AND u.id = $2 AND plan.scope = 'USER'
+       RETURNING u.id, u.name, u.created_at, u.updated_at
+     )
+     SELECT EXISTS (SELECT 1 FROM target) AS target_found,
+            EXISTS (SELECT 1 FROM plan) AS plan_visible,
+            updated.id, updated.name, updated.created_at, updated.updated_at,
+            ${planSummaryColumns("plan")}
+     FROM (SELECT 1) AS one
+     LEFT JOIN updated ON true
+     LEFT JOIN plan ON updated.id IS NOT NULL`,
+    [accountId, userId, planId, now],
+  );
+  return toPlanAssignment(result.rows[0], toUserRecord);
 }
 
 function toUserRecord(row: UserRow): UserRecord {

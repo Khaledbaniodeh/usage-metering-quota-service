@@ -16,6 +16,7 @@ function unavailable(service: string): () => Promise<never> {
 export const unusedAccountsService: AccountsService = {
   createAccount: unavailable("AccountsService"),
   getAccount: unavailable("AccountsService"),
+  assignPlan: unavailable("AccountsService"),
 };
 
 export const unusedPlansService: PlansService = {
@@ -28,6 +29,7 @@ export const unusedUsersService: UsersService = {
   createUser: unavailable("UsersService"),
   getUser: unavailable("UsersService"),
   listUsers: unavailable("UsersService"),
+  assignPlan: unavailable("UsersService"),
 };
 
 /** Knows no API key: every authenticated request is rejected. */

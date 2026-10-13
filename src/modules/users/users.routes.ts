@@ -2,6 +2,7 @@ import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import type { FastifyRequest } from "fastify";
 import { errorResponseSchemas } from "../../shared/http-errors.js";
 import { requireAuthenticatedAccount } from "../auth/authenticate.js";
+import { AssignPlanBodySchema } from "../plans/plan.schemas.js";
 import {
   CreateUserBodySchema,
   UserListQuerySchema,
@@ -109,6 +110,40 @@ export const userRoutes: FastifyPluginAsyncTypebox<UserRoutesOptions> = (app, op
     async (request) => {
       const { id } = requireAuthenticatedAccount(request);
       return toUserResponse(await users.getUser(id, request.params.userId));
+    },
+  );
+
+  app.put(
+    "/v1/users/:userId/plan",
+    {
+      onRequest: authenticate,
+      schema: {
+        tags: ["users"],
+        summary: "Switch a user's plan",
+        description:
+          'Assigns a predefined user plan or one of the account\'s own custom USER plans to a user of the account. Unknown and foreign users are 404 "User not found"; unknown and foreign plans are 404 "Plan not found"; an ACCOUNT plan is 409 PLAN_SCOPE_MISMATCH. Assigning the current plan again succeeds and changes nothing, updatedAt included.',
+        security: [{ apiKey: [] }],
+        params: UserParamsSchema,
+        body: AssignPlanBodySchema,
+        response: {
+          200: UserSchema,
+          ...errorResponseSchemas(
+            "VALIDATION_ERROR",
+            "BAD_REQUEST",
+            "UNAUTHORIZED",
+            "NOT_FOUND",
+            "PLAN_SCOPE_MISMATCH",
+            "PAYLOAD_TOO_LARGE",
+            "UNSUPPORTED_MEDIA_TYPE",
+            "INTERNAL_ERROR",
+          ),
+        },
+      },
+    },
+    async (request) => {
+      const { id } = requireAuthenticatedAccount(request);
+      const { userId } = request.params;
+      return toUserResponse(await users.assignPlan(id, userId, request.body.planId));
     },
   );
 

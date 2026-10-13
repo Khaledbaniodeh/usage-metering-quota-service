@@ -1,4 +1,9 @@
 import type { Queryable } from "../../db/pool.js";
+import {
+  toPlanAssignment,
+  type AssignmentResultRow,
+  type PlanAssignment,
+} from "../plans/plan-assignment.js";
 import type { PlanSummary } from "../plans/plan.schemas.js";
 import {
   planSummaryColumns,
@@ -85,6 +90,46 @@ export async function findAccountIdByApiKeyHash(
     apiKeyHash,
   ]);
   return result.rows[0]?.id;
+}
+
+/**
+ * Assigns a plan to the account in one statement. Only a predefined plan or the account's own
+ * custom plan with scope ACCOUNT is assigned. Reassigning the current plan succeeds without
+ * changing anything, updated_at included; a real change sets updated_at to `now`.
+ */
+export async function assignAccountPlan(
+  db: Queryable,
+  accountId: string,
+  planId: string,
+  now: Date,
+): Promise<PlanAssignment<AccountRecord>> {
+  const result = await db.query<AssignmentResultRow<AccountRow>>(
+    `WITH target AS (
+       SELECT id FROM accounts WHERE id = $1
+     ),
+     plan AS (
+       SELECT id, code, name, scope, monthly_allowance, max_units_per_request
+       FROM plans
+       WHERE id = $2 AND (owner_account_id IS NULL OR owner_account_id = $1)
+     ),
+     updated AS (
+       UPDATE accounts a
+       SET plan_id = plan.id,
+           updated_at = CASE WHEN a.plan_id = plan.id THEN a.updated_at ELSE $3 END
+       FROM plan
+       WHERE a.id = $1 AND plan.scope = 'ACCOUNT'
+       RETURNING a.id, a.name, a.created_at, a.updated_at
+     )
+     SELECT EXISTS (SELECT 1 FROM target) AS target_found,
+            EXISTS (SELECT 1 FROM plan) AS plan_visible,
+            updated.id, updated.name, updated.created_at, updated.updated_at,
+            ${planSummaryColumns("plan")}
+     FROM (SELECT 1) AS one
+     LEFT JOIN updated ON true
+     LEFT JOIN plan ON updated.id IS NOT NULL`,
+    [accountId, planId, now],
+  );
+  return toPlanAssignment(result.rows[0], toAccountRecord);
 }
 
 function toAccountRecord(row: AccountRow): AccountRecord {
