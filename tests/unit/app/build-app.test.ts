@@ -5,6 +5,12 @@ import { createLogger } from "../../../src/shared/logger.js";
 import { createSilentLogger } from "../../helpers/logger.js";
 import { testAppDependencies } from "../../helpers/app-stubs.js";
 
+interface OpenApiOperation {
+  security?: unknown;
+  parameters?: { in: string; name: string }[];
+  responses?: Record<string, unknown>;
+}
+
 // These tests exercise HTTP routing, the error contract and OpenAPI generation with an injected
 // readiness result. Readiness against a real PostgreSQL database is covered by integration tests.
 
@@ -169,6 +175,51 @@ describe("application contract", () => {
     expect(JSON.stringify(operation?.requestBody)).toContain("requestId");
     expect(JSON.stringify(operation?.responses?.["200"])).toContain("blockingRule");
     expect(document.tags?.map((tag) => tag.name)).toContain("consumption");
+  });
+
+  it("documents the usage, history and paginated list operations", async () => {
+    const instance = await appWithReadiness({ ready: true });
+
+    const response = await instance.inject({ method: "GET", url: "/docs/json" });
+    const document = response.json<{
+      paths: Record<string, Record<string, OpenApiOperation | undefined>>;
+      tags?: { name: string }[];
+    }>();
+    const paths = new Map(Object.entries(document.paths));
+    const operation = (path: string) => paths.get(path)?.get;
+
+    const expectations: [path: string, query: string[], statuses: string[]][] = [
+      ["/v1/users", ["limit", "cursor"], ["200", "400", "401"]],
+      ["/v1/usage", ["month"], ["200", "400", "401", "404"]],
+      ["/v1/users/{userId}/usage", ["month"], ["200", "400", "401", "404"]],
+      ["/v1/usage/users", ["month", "limit", "cursor"], ["200", "400", "401"]],
+      ["/v1/history", ["userId", "month", "limit", "cursor"], ["200", "400", "401", "404"]],
+    ];
+    for (const [path, query, statuses] of expectations) {
+      const get = operation(path);
+      expect(get, path).toBeDefined();
+      expect(get?.security).toEqual([{ apiKey: [] }]);
+      expect(
+        (get?.parameters ?? [])
+          .filter((parameter) => parameter.in === "query")
+          .map((parameter) => parameter.name)
+          .sort(),
+        path,
+      ).toEqual([...query].sort());
+      expect(Object.keys(get?.responses ?? {})).toEqual(expect.arrayContaining(statuses));
+    }
+
+    const body = (path: string) => JSON.stringify(operation(path)?.responses?.["200"]);
+    expect(body("/v1/users")).toContain("nextCursor");
+    expect(body("/v1/history")).toContain("nextCursor");
+    expect(body("/v1/history")).toContain("blockingRule");
+    expect(body("/v1/usage/users")).toContain("currentMonth");
+    // Current and past month are two documented forms.
+    expect(body("/v1/usage")).toMatch(/"(anyOf|oneOf)"/);
+    expect(body("/v1/usage/users")).toMatch(/"(anyOf|oneOf)"/);
+    expect(document.tags?.map((tag) => tag.name)).toEqual(
+      expect.arrayContaining(["usage", "history"]),
+    );
   });
 
   it("serves the interactive documentation page", async () => {
