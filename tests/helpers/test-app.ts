@@ -1,6 +1,7 @@
 import type pg from "pg";
 import type { Logger } from "pino";
 import { buildApp, type App } from "../../src/app/build-app.js";
+import type { DatabaseConfig } from "../../src/config/config.js";
 import { createAppDependencies, type DependencyOverrides } from "../../src/app/dependencies.js";
 import { loadMigrations } from "../../src/db/migrator.js";
 import { createPool } from "../../src/db/pool.js";
@@ -15,10 +16,8 @@ export interface IntegrationApp {
 
 export interface IntegrationAppOptions extends DependencyOverrides {
   readonly logger?: Logger;
-  /** Overrides the test configuration's lock timeout (e.g. a short one for BUSY_RETRY tests). */
-  readonly lockTimeoutMs?: number;
-  /** Overrides the test configuration's pool size (e.g. for many concurrent transactions). */
-  readonly poolMax?: number;
+  /** Overrides of the test database settings (pool size, timeouts, lock timeout). */
+  readonly database?: Partial<Omit<DatabaseConfig, "url">>;
 }
 
 /**
@@ -28,13 +27,13 @@ export interface IntegrationAppOptions extends DependencyOverrides {
 export async function createIntegrationApp(
   options: IntegrationAppOptions = {},
 ): Promise<IntegrationApp> {
-  const { logger = createSilentLogger(), lockTimeoutMs, poolMax, ...overrides } = options;
-  const database = testConfig().database;
-  const pool = createPool({ ...database, poolMax: poolMax ?? database.poolMax }, logger);
+  const { logger = createSilentLogger(), database: databaseOverrides, ...overrides } = options;
+  const database: DatabaseConfig = { ...testConfig().database, ...databaseOverrides };
+  const pool = createPool(database, logger);
   const app = await buildApp(
     createAppDependencies(pool, await loadMigrations(), logger, {
       ...overrides,
-      lockTimeoutMs: lockTimeoutMs ?? database.lockTimeoutMs,
+      lockTimeoutMs: database.lockTimeoutMs,
     }),
   );
   return {

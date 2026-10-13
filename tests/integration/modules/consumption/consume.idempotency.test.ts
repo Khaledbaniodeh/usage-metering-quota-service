@@ -43,7 +43,7 @@ let restoreQueries: (() => void) | undefined;
 
 beforeAll(async () => {
   await resetAccountState();
-  integration = await createIntegrationApp({ clock: () => now, poolMax: 10 });
+  integration = await createIntegrationApp({ clock: () => now, database: { poolMax: 10 } });
 });
 
 afterEach(async () => {
