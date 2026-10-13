@@ -7,7 +7,7 @@ it.
 
 ## Status
 
-**Implementation Phase 3: plans, users and plan assignment.**
+**Implementation Phase 4: the consumption engine.**
 
 Implemented so far:
 
@@ -19,14 +19,16 @@ Implemented so far:
   account endpoint.
 - Plan listing, custom plans (create and update) and account-scoped users, with plan switching
   for the account and each of its users under strict tenant isolation.
+- Atomic, idempotent consumption: `POST /v1/consume` checks the four account and user limits,
+  counts accepted units in monthly counters and records every decision immutably, with safe
+  retries, bounded lock waiting and proven behavior under concurrent requests.
 - One catalogue of stable error codes behind a single JSON error shape.
 - Liveness and readiness endpoints and generated OpenAPI documentation.
 - Production Docker image and a Docker Compose stack (service + PostgreSQL).
 - Unit tests, and integration tests against a real PostgreSQL database, including an
   account-isolation harness.
 
-**Not implemented yet:** usage consumption, usage and history APIs, the example
-client and load tests. They arrive in later, separately verified phases described in
+**Not implemented yet:** the usage and history APIs, the example client and load tests. They arrive in later, separately verified phases described in
 [docs/architecture.md](docs/architecture.md).
 
 ## Prerequisites
@@ -253,6 +255,102 @@ plans, of the matching scope. Checks apply in this order:
 
 A failed switch changes nothing. Assigning the plan that is already assigned succeeds and returns
 the unchanged resource, including its previous `updatedAt`; a real change sets `updatedAt`.
+
+## Consuming units
+
+`POST /v1/consume` (requires `X-API-Key`) asks whether a user of the authenticated account may
+consume units now, and counts them if so.
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/v1/consume \
+  -H "X-API-Key: $UMQS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"userId": "<user-id>", "units": 10, "requestId": "doc-2026-10-13-0001"}'
+```
+
+| Field       | Rule                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------- |
+| `userId`    | UUID of a user of the authenticated account                                           |
+| `units`     | JSON integer from 1 to 1,000,000,000 (`"10"`, `10.5`, `0` and negatives are rejected) |
+| `requestId` | 1-128 characters from `A-Z a-z 0-9 . _ : -`, chosen by the caller; unique per account |
+
+Unknown fields are rejected. **Every decision is `200 OK`**, whether accepted or not:
+
+```json
+{
+  "requestId": "doc-2026-10-13-0001",
+  "userId": "<user-id>",
+  "units": 10,
+  "accepted": false,
+  "blockingRule": "MONTHLY_ALLOWANCE",
+  "blockingLevel": "ACCOUNT",
+  "month": "2026-10",
+  "processedAt": "2026-10-13T09:30:15.123Z",
+  "account": {
+    "planId": "a0000000-0000-4000-8000-000000000001",
+    "planName": "Starter",
+    "monthlyAllowance": 10000,
+    "maxUnitsPerRequest": 100,
+    "used": 9995,
+    "remaining": 5
+  },
+  "user": {
+    "planId": "b0000000-0000-4000-8000-000000000001",
+    "planName": "Basic",
+    "monthlyAllowance": 1000,
+    "maxUnitsPerRequest": 20,
+    "used": 120,
+    "remaining": 880
+  }
+}
+```
+
+- **Rules.** A request is accepted only when all four checks pass. They are evaluated in this fixed
+  order and the first failure is reported as `blockingRule` and `blockingLevel`:
+  1. user `MAX_UNITS_PER_REQUEST`
+  2. account `MAX_UNITS_PER_REQUEST`
+  3. user `MONTHLY_ALLOWANCE`
+  4. account `MONTHLY_ALLOWANCE`
+
+  Exactly reaching a limit is allowed. An accepted request adds its units to both the user's and
+  the account's usage for the month. A rejection counts nothing. Both `blockingRule` and
+  `blockingLevel` are `null` when accepted.
+
+- **Usage values.** `used` is the month's usage after this decision. `remaining` is
+  `monthlyAllowance - used`, shown as `0` (never negative) when an allowance was reduced below
+  existing usage; further requests at that level are rejected until allowance is available again.
+- **Months.** Usage belongs to the UTC calendar month in which the request is processed (`month`,
+  `YYYY-MM`). Each month starts at zero; previous months keep their totals.
+- **Plan changes.** Each decision records the plan IDs, names and all four limits it used. Plan
+  updates and switches apply to requests that start after they succeed, and never change a
+  recorded decision. A request in flight uses either the complete old state or the complete new
+  state, never a mix.
+
+### Retries and idempotency
+
+The `requestId` makes retries safe. The decision for each `(account, requestId)` is stored once.
+
+- Retrying with the **same `userId` and `units`** returns the original response, byte for byte.
+  This holds for accepted and rejected decisions alike, and even after plan changes or the start
+  of a new month. Nothing is counted again.
+- Reusing a `requestId` with a **different `userId` or `units`** returns `409 IDEMPOTENCY_CONFLICT`
+  and changes nothing.
+- Request IDs are scoped to the account: another account may use the same value independently.
+
+| Status                     | Meaning                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `200`                      | A decision (accepted or rejected)                                                                            |
+| `400 VALIDATION_ERROR`     | Malformed body; nothing recorded                                                                             |
+| `401 UNAUTHORIZED`         | Missing or invalid API key                                                                                   |
+| `404 NOT_FOUND`            | `User not found`: unknown, or a user of another account (same response); nothing recorded                    |
+| `409 IDEMPOTENCY_CONFLICT` | `requestId` already used with a different payload                                                            |
+| `503 BUSY_RETRY`           | Too much contention on this account; nothing recorded. Retry the same request after `Retry-After` (1 second) |
+
+After a `500` or a network failure the client cannot know whether a decision was recorded; retrying
+with the same `requestId` is always safe and returns the decision if there is one.
+
+**Configuration:** `DB_LOCK_TIMEOUT_MS` (default 2000) bounds how long a request waits for the
+account's usage counter before answering `503 BUSY_RETRY`.
 
 ## Health checks and API documentation
 

@@ -45,7 +45,7 @@ no import-time side effects. The example client talks to the service over HTTP o
 
 ## Source layout
 
-Directories are created when a phase adds real code to them. As of Phase 3:
+Directories are created when a phase adds real code to them. As of Phase 4:
 
 ```
 src/
@@ -54,11 +54,13 @@ src/
                        contract, OpenAPI, server lifecycle
   config/              the single configuration parser (every environment variable is read here)
   db/                  pool, type conversions, migration runner and CLI, readiness check,
-                       PostgreSQL error classification
+                       PostgreSQL error classification, transaction helper
     migrations/        forward-only SQL files (NNNN_name.sql), copied into dist/ by the build
   modules/
     accounts/          account schemas, routes, service and repository; account plan switching
     auth/              API-key primitives and the X-API-Key authentication hook
+    consumption/       pure quota rules (domain), consume schemas, routes, service and
+                       repository
     health/            liveness and readiness routes; owns the readiness port
     plans/             plan schemas, routes, service and repository; the shared plan summary
                        columns and the plan-assignment outcome used by accounts and users
@@ -118,21 +120,50 @@ The project targets PostgreSQL 16 (Compose and CI use `postgres:16.15-alpine`).
 
 ## Consume transaction
 
-1. Authenticate and validate `userId`, `units` (integer, 1 to 1,000,000,000) and `requestId`.
-2. Fast path, outside a transaction: an existing decision for `(account, requestId)` with the same
-   payload is returned unchanged; a different payload returns `409 IDEMPOTENCY_CONFLICT`.
-3. Capture the time once from the injected clock and derive the UTC month.
-4. Begin a READ COMMITTED transaction with a lock timeout.
-5. Read the user (scoped to the account), the account and both assigned plans in one statement.
-   An unknown or foreign user returns `404` and nothing is recorded.
-6. Create missing monthly counter rows, then lock the account counter, then the user counter.
-7. Re-check idempotency under the lock.
-8. Evaluate the limits in a fixed order: user per-request, account per-request, user monthly,
-   account monthly. The first failing rule is reported with its level.
-9. Increment both counters only when accepted; insert the immutable decision record; commit.
+Implemented in `src/modules/consumption/` (Phase 4). Route → `consume.service.ts` (workflow and
+transaction boundary) → `consume.repository.ts` (SQL) → PostgreSQL; the rules live in the pure
+`consume.domain.ts`.
 
-Every decision returns HTTP 200 with `accepted: true` or `accepted: false`. The response is built
-only from the stored decision record, so a retry receives exactly the same body.
+1. Authenticate and validate `userId` (UUID), `units` (JSON integer, 1 to 1,000,000,000) and
+   `requestId` (1-128 of `[A-Za-z0-9._:-]`). Unknown fields are rejected; nothing is coerced.
+   The `userId` is compared in lower case.
+2. **Fast path**, outside a transaction: look up `(account, requestId)`. A stored decision with
+   the same `userId` and `units` is returned unchanged; a different payload is
+   `409 IDEMPOTENCY_CONFLICT`. No clock read happens on this path.
+3. Only for a new request: read the injected clock once and derive the UTC month (first day,
+   `YYYY-MM-01`).
+4. `withTransaction` (`src/db/transaction.ts`): a dedicated pooled connection,
+   `BEGIN ISOLATION LEVEL READ COMMITTED`, then `set_config('lock_timeout', …, true)` from
+   `DB_LOCK_TIMEOUT_MS`.
+5. One statement reads the user (filtered by account and ID), the account and both assigned plans,
+   with no row locks. No row means an unknown or foreign user: `404 User not found`, and the
+   transaction rolls back with nothing written.
+6. `INSERT … ON CONFLICT DO NOTHING` creates missing counter rows (account, then user). Then
+   `SELECT … FOR UPDATE` locks the account counter, then the user counter.
+7. Re-check `(account, requestId)` under the account-counter lock. If a decision appeared, the
+   transaction rolls back and the request is answered as in step 2.
+8. Evaluate the four limits (`evaluateQuota`) on the plan snapshot and the freshly locked counter
+   values: user per-request, account per-request, user monthly, account monthly. The first
+   failure is reported.
+9. If accepted, increment the account counter, then the user counter. Insert the immutable
+   decision (plan IDs, names, four limits, both "used before" values, month, `processed_at`) and
+   commit.
+10. The response is `toDecisionResponse(stored row)`: `used = usedBefore + (accepted ? units : 0)`,
+    `remaining = max(0, allowance − used)`. Original responses and replays share this one
+    function and read nothing else.
+
+Failure handling:
+
+- Any error rolls back the whole transaction, including counter increments. A connection whose
+  `ROLLBACK` fails is destroyed instead of being reused.
+- **Backstop:** a unique violation of exactly `consume_decisions_account_id_request_id_key`
+  means a duplicate committed first. Normally the account lock prevents this; it is reachable
+  only for duplicates in different UTC months, which lock different counter rows. The loser has
+  already rolled back; the winning decision is read and replayed, or answered with 409.
+- A lock timeout (SQLSTATE `55P03` only) becomes `503 BUSY_RETRY` with `Retry-After: 1`, with
+  nothing written. Statement timeouts, deadlocks and other errors stay generic 500s.
+
+Every decision returns HTTP 200 with `accepted: true` or `accepted: false`.
 
 ## Concurrency and idempotency strategy
 
@@ -148,8 +179,26 @@ only from the stored decision record, so a retry receives exactly the same body.
 - **Idempotency:** unique `(account_id, request_id)`; fast-path lookup; authoritative re-check
   under the account lock; a unique-violation backstop (needed only for duplicates that straddle a
   month boundary) rolls back and replays the winning decision.
-- **Bounded waiting:** a lock timeout returns `503 BUSY_RETRY` with `Retry-After`; retrying with
-  the same `requestId` is safe.
+- **Bounded waiting:** a lock timeout returns `503 BUSY_RETRY` with `Retry-After: 1`; retrying
+  with the same `requestId` is safe.
+- **How concurrency is tested:** deterministically, without sleeps.
+  - A test connection holds the account counter's row lock.
+  - The racing requests are sent.
+  - The test waits until `pg_stat_activity` shows the expected number of the service's backends
+    waiting on a lock, then releases.
+  - The month-boundary backstop and injected failures (at the decision insert or `COMMIT`) use
+    test-only interception of `pg.Client.prototype.query`.
+  - Every wait has a deadline.
+  - After the files run, a direct-SQL checker (`tests/helpers/quota-invariants.ts`) verifies the
+    stored data:
+    - counters equal their accepted decisions;
+    - each decision's "used before" equals the earlier accepted units in its month (serialized
+      decisions);
+    - every rejection names the first failing rule;
+    - there are no duplicates, cross-tenant rows or negative usage.
+  - Mutation checks confirm the tests catch regressions: without the counter row locks, 59 of 60
+    racing requests are accepted instead of 50.
+
 - **Clock:** one injected application clock, UTC, millisecond precision, captured once per request.
 
 ## Accounts, API keys and authentication
