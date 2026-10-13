@@ -8,6 +8,8 @@ import {
   registerAuthentication,
   type ResolveAccountByApiKeyHash,
 } from "../modules/auth/authenticate.js";
+import { consumeRoutes } from "../modules/consumption/consume.routes.js";
+import type { ConsumptionService } from "../modules/consumption/consume.service.js";
 import { healthRoutes, type ReadinessCheck } from "../modules/health/health.routes.js";
 import { planRoutes } from "../modules/plans/plans.routes.js";
 import type { PlansService } from "../modules/plans/plans.service.js";
@@ -22,6 +24,7 @@ export interface AppDependencies {
   readonly accounts: AccountsService;
   readonly plans: PlansService;
   readonly users: UsersService;
+  readonly consumption: ConsumptionService;
   readonly resolveAccountByApiKeyHash: ResolveAccountByApiKeyHash;
 }
 
@@ -49,6 +52,7 @@ export async function buildApp(dependencies: AppDependencies) {
   await app.register(accountRoutes, { accounts: dependencies.accounts, authenticate });
   await app.register(planRoutes, { plans: dependencies.plans, authenticate });
   await app.register(userRoutes, { users: dependencies.users, authenticate });
+  await app.register(consumeRoutes, { consumption: dependencies.consumption, authenticate });
 
   return app;
 }

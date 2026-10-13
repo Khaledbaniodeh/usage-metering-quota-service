@@ -26,6 +26,8 @@ export interface ErrorDefinition {
   readonly statusCode: number;
   /** Default client-facing message; never contains request data, SQL or credentials. */
   readonly message: string;
+  /** Sent as the Retry-After header (seconds) for errors the client should retry. */
+  readonly retryAfterSeconds?: number;
 }
 
 /** `satisfies` makes the compiler reject a missing, extra or misspelled code. */
@@ -49,7 +51,11 @@ export const ERROR_CATALOGUE = {
   },
   PAYLOAD_TOO_LARGE: { statusCode: 413, message: "The request body is too large" },
   UNSUPPORTED_MEDIA_TYPE: { statusCode: 415, message: "The request content type is not supported" },
-  BUSY_RETRY: { statusCode: 503, message: "The service is busy; retry the same request shortly" },
+  BUSY_RETRY: {
+    statusCode: 503,
+    message: "The service is busy; retry the same request shortly",
+    retryAfterSeconds: 1,
+  },
   SERVICE_UNAVAILABLE: { statusCode: 503, message: "The service is not ready" },
   INTERNAL_ERROR: { statusCode: 500, message: "Internal server error" },
 } as const satisfies Record<ErrorCode, ErrorDefinition>;

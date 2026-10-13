@@ -45,7 +45,11 @@ export async function startServer(
   const pool = createPool(config.database, logger);
   let app: App | undefined;
   try {
-    app = await buildApp(createAppDependencies(pool, migrations, logger));
+    app = await buildApp(
+      createAppDependencies(pool, migrations, logger, {
+        lockTimeoutMs: config.database.lockTimeoutMs,
+      }),
+    );
     const address = await app.listen({ host: LISTEN_HOST, port: config.port });
     return { app, pool, address, stop: onceAsync(stopAll(app, pool)) };
   } catch (error) {

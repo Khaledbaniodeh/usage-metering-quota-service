@@ -13,6 +13,19 @@ describe("toErrorResponse", () => {
     });
   });
 
+  it("tells the client when to retry a BUSY_RETRY error", () => {
+    expect(toErrorResponse(new AppError("BUSY_RETRY"))).toEqual({
+      statusCode: 503,
+      body: {
+        error: {
+          code: "BUSY_RETRY",
+          message: "The service is busy; retry the same request shortly",
+        },
+      },
+      retryAfterSeconds: 1,
+    });
+  });
+
   it("maps schema validation failures to 400 VALIDATION_ERROR", () => {
     const error = Object.assign(new Error("body/units must be integer"), {
       statusCode: 400,

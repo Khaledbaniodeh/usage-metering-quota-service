@@ -15,6 +15,8 @@ export interface DatabaseConfig {
   readonly poolMax: number;
   readonly connectionTimeoutMs: number;
   readonly statementTimeoutMs: number;
+  /** How long a consume transaction waits for a quota-counter lock before answering 503. */
+  readonly lockTimeoutMs: number;
 }
 
 export interface AppConfig {
@@ -76,6 +78,12 @@ export function loadConfig(env: Environment): AppConfig {
         "DB_STATEMENT_TIMEOUT_MS",
         env.DB_STATEMENT_TIMEOUT_MS,
         { defaultValue: 5_000, min: 100, max: 600_000 },
+        issues,
+      ),
+      lockTimeoutMs: readInteger(
+        "DB_LOCK_TIMEOUT_MS",
+        env.DB_LOCK_TIMEOUT_MS,
+        { defaultValue: 2_000, min: 10, max: 60_000 },
         issues,
       ),
     },
