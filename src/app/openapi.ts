@@ -19,7 +19,10 @@ export async function registerOpenApi(app: FastifyInstance): Promise<void> {
         description:
           "Meters usage and enforces account-level and user-level monthly quotas. This document grows with each implementation phase.",
       },
-      tags: [{ name: "health", description: "Liveness and readiness probes" }],
+      tags: [
+        { name: "health", description: "Liveness and readiness probes" },
+        { name: "accounts", description: "Account creation and the authenticated account" },
+      ],
     },
   });
   await app.register(swaggerUi, { routePrefix: "/docs" });

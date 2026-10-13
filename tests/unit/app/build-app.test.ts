@@ -3,6 +3,7 @@ import { buildApp, type App } from "../../../src/app/build-app.js";
 import type { ReadinessResult } from "../../../src/modules/health/health.routes.js";
 import { createLogger } from "../../../src/shared/logger.js";
 import { createSilentLogger } from "../../helpers/logger.js";
+import { unusedAccountsService } from "../../helpers/app-stubs.js";
 
 // These tests exercise HTTP routing, the error contract and OpenAPI generation with an injected
 // readiness result. Readiness against a real PostgreSQL database is covered by integration tests.
@@ -11,6 +12,7 @@ let app: App | undefined;
 
 async function appWithReadiness(result: ReadinessResult): Promise<App> {
   app = await buildApp({
+    accounts: unusedAccountsService,
     logger: createSilentLogger(),
     checkReadiness: () => Promise.resolve(result),
   });
@@ -25,6 +27,7 @@ afterEach(async () => {
 describe("health routes", () => {
   it("reports liveness without consulting readiness", async () => {
     const instance = await buildApp({
+      accounts: unusedAccountsService,
       logger: createSilentLogger(),
       checkReadiness: () => Promise.reject(new Error("must not be called")),
     });
@@ -61,6 +64,7 @@ describe("health routes", () => {
 
   it("answers unhandled readiness failures with a generic 500", async () => {
     const instance = await buildApp({
+      accounts: unusedAccountsService,
       logger: createSilentLogger(),
       checkReadiness: () => Promise.reject(new Error("password=hunter2 leaked in driver error")),
     });
@@ -121,6 +125,7 @@ describe("request logging", () => {
   it("keeps successful health probes out of the logs but still logs other requests", async () => {
     const lines: string[] = [];
     const instance = await buildApp({
+      accounts: unusedAccountsService,
       logger: createLogger("info", { write: (line: string) => lines.push(line) }),
       checkReadiness: () => Promise.resolve({ ready: true }),
     });
@@ -137,6 +142,7 @@ describe("request logging", () => {
   it("still logs a failed readiness check as a warning", async () => {
     const lines: string[] = [];
     const instance = await buildApp({
+      accounts: unusedAccountsService,
       logger: createLogger("info", { write: (line: string) => lines.push(line) }),
       checkReadiness: () => Promise.resolve({ ready: false, reason: "DATABASE_UNAVAILABLE" }),
     });
