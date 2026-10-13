@@ -97,8 +97,9 @@ startup; inside the container you can also run `docker compose run --rm api node
 
 ### Create an account
 
-`POST /v1/accounts` is public. The name must be 1-100 characters on a single line, without leading
-or trailing whitespace; names do not need to be unique. Unknown fields are rejected.
+`POST /v1/accounts` is public. The name must be 1-100 characters on a single line, without control
+characters or leading or trailing whitespace; names do not need to be unique. Unknown fields are
+rejected.
 
 ```bash
 curl -s -X POST http://127.0.0.1:8080/v1/accounts   -H "Content-Type: application/json"   -d '{"name": "Acme"}'

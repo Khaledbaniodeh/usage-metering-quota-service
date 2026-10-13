@@ -153,10 +153,10 @@ only from the stored decision record, so a retry receives exactly the same body.
 ## Accounts, API keys and authentication
 
 - **Account creation** (`POST /v1/accounts`, public): the name is validated by a strict schema
-  (1-100 characters, single line, already trimmed, no unknown fields; request validation never
-  coerces types). The service reads the clock once, generates the account UUID and inserts the
-  account in one statement that resolves the predefined plan by its code (`starter`) and assigns
-  it atomically.
+  (1-100 characters, single line, no control characters, already trimmed, no unknown fields;
+  request validation never coerces types). The service reads the clock once, generates the
+  account UUID and inserts the account in one statement that resolves the predefined plan by its
+  code (`starter`) and assigns it atomically.
 - **API keys:** `umqs_` followed by 32 bytes from `node:crypto` as 43 unpadded base64url
   characters. Only the SHA-256 digest of the whole key is stored (`accounts.api_key_hash`, unique).
   A 256-bit random key cannot be guessed or precomputed, so a fast deterministic hash is enough and

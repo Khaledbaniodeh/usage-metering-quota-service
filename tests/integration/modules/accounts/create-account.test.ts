@@ -187,6 +187,41 @@ describe("POST /v1/accounts", () => {
   });
 });
 
+describe("POST /v1/accounts name characters", () => {
+  // A display name is a single line of printable text. Control characters (C0, DEL, C1) and Unicode
+  // line/paragraph separators are rejected at validation; PostgreSQL text cannot even store NUL.
+  it.each([
+    ["NUL", "Acme\u0000Corp"],
+    ["carriage return", "Acme\rCorp"],
+    ["newline", "Acme\nCorp"],
+    ["line separator U+2028", "Acme Corp"],
+    ["paragraph separator U+2029", "Acme Corp"],
+    ["tab", "Acme\tCorp"],
+    ["escape", "Acme\u001bCorp"],
+    ["delete", "Acme\u007fCorp"],
+    ["next line U+0085", "Acme\u0085Corp"],
+    ["trailing line separator", "Acme Corp "],
+  ])("rejects a %s with 400 VALIDATION_ERROR and creates nothing", async (_label, name) => {
+    const before = await accountCount();
+
+    const response = await postAccount({ name });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ error: { code: string } }>().error.code).toBe("VALIDATION_ERROR");
+    expect(await accountCount()).toBe(before);
+  });
+
+  it.each([
+    ["accents", "Café Zürich"],
+    ["non-Latin scripts", "株式会社 東京"],
+    ["several words", "José María López & Co."],
+  ])("accepts ordinary Unicode text with %s", async (_label, name) => {
+    const created = await createAccount(name);
+
+    expect(created.name).toBe(name);
+  });
+});
+
 describe("POST /v1/accounts with a colliding API-key digest", () => {
   it("retries with a fresh key against the real unique constraint", async () => {
     // Byte sequence: account A gets 0x01...; account B first draws 0x01... again (a digest that
