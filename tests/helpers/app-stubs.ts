@@ -41,6 +41,7 @@ export const unusedConsumptionService: ConsumptionService = {
 export const unusedUsageService: UsageService = {
   getAccountUsage: unavailable("UsageService"),
   getUserUsage: unavailable("UsageService"),
+  listUserUsage: unavailable("UsageService"),
 };
 
 /** Knows no API key: every authenticated request is rejected. */

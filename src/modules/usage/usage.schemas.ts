@@ -1,5 +1,9 @@
 import { Type, type Static } from "typebox";
-import { MonthQuerySchema } from "../../shared/query-params.js";
+import {
+  CursorQuerySchema,
+  LimitQuerySchema,
+  MonthQuerySchema,
+} from "../../shared/query-params.js";
 
 export const MonthKeySchema = Type.String({
   pattern: "^\\d{4}-\\d{2}$",
@@ -48,4 +52,68 @@ export type MonthlyUsageResponse = Static<typeof MonthlyUsageSchema>;
 export const UsageQuerySchema = Type.Object(
   { month: Type.Optional(MonthQuerySchema) },
   { additionalProperties: false },
+);
+
+export const UserUsageListQuerySchema = Type.Object(
+  {
+    month: Type.Optional(MonthQuerySchema),
+    limit: Type.Optional(LimitQuerySchema),
+    cursor: Type.Optional(CursorQuerySchema),
+  },
+  { additionalProperties: false },
+);
+
+const listedUserProperties = {
+  userId: Type.String({ format: "uuid" }),
+  name: Type.String(),
+};
+
+const nextCursorProperties = {
+  nextCursor: Type.Union([Type.String(), Type.Null()], {
+    description:
+      "Pass as cursor to get the next page; null on the last page. A current-month cursor expires when the UTC month changes.",
+  }),
+};
+
+const CurrentMonthUserUsagePageSchema = Type.Object(
+  {
+    month: MonthKeySchema,
+    currentMonth: Type.Literal(true, {
+      description: "The month was the current UTC month when the traversal began",
+    }),
+    users: Type.Array(
+      Type.Object(
+        {
+          ...listedUserProperties,
+          planId: Type.String({ format: "uuid" }),
+          planName: Type.String(),
+          ...usedProperties,
+          ...currentLimitProperties,
+        },
+        { additionalProperties: false },
+      ),
+    ),
+    ...nextCursorProperties,
+  },
+  { additionalProperties: false, title: "CurrentMonthUserUsagePage" },
+);
+
+const PastMonthUserUsagePageSchema = Type.Object(
+  {
+    month: MonthKeySchema,
+    currentMonth: Type.Literal(false),
+    users: Type.Array(
+      Type.Object({ ...listedUserProperties, ...usedProperties }, { additionalProperties: false }),
+    ),
+    ...nextCursorProperties,
+  },
+  { additionalProperties: false, title: "PastMonthUserUsagePage" },
+);
+
+export const UserUsagePageSchema = Type.Union(
+  [CurrentMonthUserUsagePageSchema, PastMonthUserUsagePageSchema],
+  {
+    description:
+      "One page of every user's usage for a UTC month, newest user first. The form (current or past month) is fixed for the whole traversal.",
+  },
 );
