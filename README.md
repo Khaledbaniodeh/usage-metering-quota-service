@@ -7,7 +7,7 @@ it.
 
 ## Status
 
-**Implementation Phase 4: the consumption engine.**
+**Implementation Phase 5: usage, decision history and pagination.**
 
 Implemented so far:
 
@@ -22,13 +22,15 @@ Implemented so far:
 - Atomic, idempotent consumption: `POST /v1/consume` checks the four account and user limits,
   counts accepted units in monthly counters and records every decision immutably, with safe
   retries, bounded lock waiting and proven behavior under concurrent requests.
+- Monthly usage for the account and each user, the immutable decision history, and keyset
+  pagination with opaque cursors for the user, usage and history lists.
 - One catalogue of stable error codes behind a single JSON error shape.
 - Liveness and readiness endpoints and generated OpenAPI documentation.
 - Production Docker image and a Docker Compose stack (service + PostgreSQL).
 - Unit tests, and integration tests against a real PostgreSQL database, including an
   account-isolation harness.
 
-**Not implemented yet:** the usage and history APIs, the example client and load tests. They arrive in later, separately verified phases described in
+**Not implemented yet:** the example client and load tests. They arrive in later, separately verified phases described in
 [docs/architecture.md](docs/architecture.md).
 
 ## Prerequisites
@@ -183,7 +185,7 @@ discover other accounts' resources.
 | `POST /v1/plans`              | Create a custom plan owned by the account                                 |
 | `PATCH /v1/plans/{planId}`    | Change the name or limits of one of the account's custom plans            |
 | `POST /v1/users`              | Register a user; it starts on the predefined Basic plan                   |
-| `GET /v1/users`               | The account's users with their plans, oldest first                        |
+| `GET /v1/users`               | The account's users with their plans, oldest first, paginated             |
 | `GET /v1/users/{userId}`      | One user of the account with its plan                                     |
 | `PUT /v1/users/{userId}/plan` | Switch a user's plan                                                      |
 | `PUT /v1/account/plan`        | Switch the account's plan                                                 |
@@ -240,7 +242,8 @@ plan switch) is:
 }
 ```
 
-`GET /v1/users` returns `{"users": [...]}` in creation order. An unknown user and another
+`GET /v1/users` returns `{"users": [...], "nextCursor": ...}` in creation order, one page at a
+time (see [Pagination](#pagination)). An unknown user and another
 account's user both return `404 NOT_FOUND` with the message `User not found`.
 
 ### Switching plans
@@ -351,6 +354,111 @@ with the same `requestId` is always safe and returns the decision if there is on
 
 **Configuration:** `DB_LOCK_TIMEOUT_MS` (default 2000) bounds how long a request waits for the
 account's usage counter before answering `503 BUSY_RETRY`.
+
+## Usage
+
+All usage endpoints require `X-API-Key` and report one UTC calendar month. `month` is `YYYY-MM`
+and defaults to the current UTC month; a future month is `400`. Usage counts accepted requests
+only, and a month without usage reports `0` (never `404`).
+
+| Endpoint                                    | Returns                                                     |
+| ------------------------------------------- | ----------------------------------------------------------- |
+| `GET /v1/usage?month=`                      | The account's shared usage                                  |
+| `GET /v1/users/{userId}/usage?month=`       | One user's usage (unknown and other accounts' users: `404`) |
+| `GET /v1/usage/users?month=&limit=&cursor=` | Every user's usage, newest user first, paginated            |
+
+The **current month** includes the limits of the plan assigned now:
+
+```json
+{
+  "month": "2026-10",
+  "used": 120,
+  "monthlyAllowance": 1000,
+  "maxUnitsPerRequest": 20,
+  "remaining": 880
+}
+```
+
+A **past month** reports `{"month": "2026-09", "used": 340}` only. Today's plan says nothing
+about the limits that applied then, so no remaining value is invented; the limits that applied to
+each request are recorded on its decision in `GET /v1/history`.
+
+- `remaining = max(0, monthlyAllowance - used)`: when an allowance was reduced below usage it
+  shows `0`, and further requests at that level are rejected until allowance is available again.
+- Switching plans keeps the month's usage; it never grants a fresh allowance.
+- The account's `used` is the sum of its users' accepted usage.
+
+`GET /v1/usage/users` returns `{"month", "currentMonth", "users": [...], "nextCursor"}`. With
+`currentMonth: true` each user has `userId`, `name`, `planId`, `planName`, `used`,
+`monthlyAllowance`, `maxUnitsPerRequest` and `remaining`; with `currentMonth: false` (a past
+month) each user has `userId`, `name` and `used`. Every user is listed, with `used: 0` when it has
+no usage in that month.
+
+## Decision history
+
+`GET /v1/history?userId=&month=&limit=&cursor=` (requires `X-API-Key`) lists the account's
+consume decisions, newest first:
+
+```json
+{
+  "userId": null,
+  "month": "2026-10",
+  "decisions": [
+    { "requestId": "doc-1", "accepted": true, "...": "exactly the POST /v1/consume body" }
+  ],
+  "nextCursor": "eyJ2IjoxLCJrIjoiaGlzdG9yeSIs..."
+}
+```
+
+- Each decision is **exactly the body `POST /v1/consume` returned**, rebuilt from the stored
+  record: plan IDs, names and all four limits as they were at that moment, with `used` and
+  `remaining` after that decision. Later plan updates or switches never change it.
+- Optional filters: `userId` (a user of the account; an unknown user and another account's user
+  both get `404 User not found`) and `month` (`YYYY-MM`, UTC; a future month is `400`). The
+  response echoes the filters in effect (`null` when not filtered).
+
+## Pagination
+
+`GET /v1/users`, `GET /v1/usage/users` and `GET /v1/history` return one page at a time:
+
+- `limit`: an integer from 1 to 100 written plainly (no sign, decimal point, exponent, spaces or
+  leading zeros); default 20.
+- `nextCursor`: pass it as `cursor` to get the next page; it is `null` on the last page. Pages are
+  never addressed by offset.
+- A continuation request may send only `cursor` (and optionally a different `limit`). The cursor
+  carries the traversal's filters (`month`; `userId` for history): a request may repeat them
+  exactly but not change them.
+- Every unusable cursor gets the same response:
+  `400 {"error":{"code":"VALIDATION_ERROR","message":"Invalid cursor"}}`. That includes malformed
+  values, a cursor from another endpoint, changed filters, an expired cursor (below) and a cursor
+  pointing at a row that is not visible to the caller.
+
+| Endpoint              | Order                 | Notes                                                     |
+| --------------------- | --------------------- | --------------------------------------------------------- |
+| `GET /v1/users`       | Oldest user first     | Users created during a traversal appear on later pages    |
+| `GET /v1/usage/users` | Newest user first     | A current-month traversal expires when the UTC month ends |
+| `GET /v1/history`     | Newest decision first | New decisions appear only in a new traversal              |
+
+**Cursor format.** A cursor is opaque to clients but **not secret and not tamper-proof**: it is
+unpadded base64url of a small JSON object (version, endpoint, the UUID of the last row returned,
+and the bound filters). It is not signed or encrypted. Authorization never comes from the cursor:
+every lookup and page query is restricted to the authenticated account in SQL, so a modified
+cursor can at most move the caller within its own data, and a cursor naming another account's row
+is simply invalid. Cursors never contain API keys, hashes, SQL or internal sequence numbers.
+
+**`GET /v1/users` is now paginated.** Until Phase 5 it returned every user in one response. It
+now returns `{"users": [...], "nextCursor": ...}` with at most 20 users by default. An account with
+up to 20 users receives the same complete list as before, plus `nextCursor: null`. This is a
+deliberate pre-release contract change.
+
+### Known limitations
+
+| Limitation                                     | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No duplicates; no gaps only for committed data | Pages never repeat a row, and a traversal over data that does not change returns every row once. A row whose position was allocated before a page boundary but that **commits after** that page was read is missed by that traversal (a new traversal includes it). For users this window is a concurrent user creation. For decisions it exists only for two requests of one account straddling a UTC month boundary: within one month the account's usage lock makes decisions commit in order. Both cases are reproduced by tests. |
+| Current-month cursor expiry                    | A `GET /v1/usage/users` traversal of the current month becomes invalid when the UTC month changes, so its pages never switch between the current and past-month forms. Restart with `month=<that month>` to page through it as a past month.                                                                                                                                                                                                                                                                                          |
+| Usage lists are not a snapshot                 | Each page of `GET /v1/usage/users` reads usage and the live plan when it is served, so values on different pages can reflect different moments.                                                                                                                                                                                                                                                                                                                                                                                       |
+| History filtered by both user and month        | Served by the existing `(account_id, user_id, seq)` or `(account_id, month, seq)` index plus a filter. For a user with a very large history asking about an old month, the first page scans that user's newer decisions. A combined index is deferred until load tests show it is needed (see the architecture notes).                                                                                                                                                                                                                |
 
 ## Health checks and API documentation
 
