@@ -1,6 +1,7 @@
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import type { FastifyInstance } from "fastify";
+import { API_KEY_HEADER } from "../modules/auth/authenticate.js";
 
 /** Version of the HTTP API contract described by the OpenAPI document. */
 export const API_CONTRACT_VERSION = "0.1.0";
@@ -18,6 +19,16 @@ export async function registerOpenApi(app: FastifyInstance): Promise<void> {
         version: API_CONTRACT_VERSION,
         description:
           "Meters usage and enforces account-level and user-level monthly quotas. This document grows with each implementation phase.",
+      },
+      components: {
+        securitySchemes: {
+          apiKey: {
+            type: "apiKey",
+            in: "header",
+            name: API_KEY_HEADER,
+            description: "The account API key returned once by POST /v1/accounts",
+          },
+        },
       },
       tags: [
         { name: "health", description: "Liveness and readiness probes" },

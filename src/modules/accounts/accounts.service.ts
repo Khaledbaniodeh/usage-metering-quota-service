@@ -2,9 +2,11 @@ import { randomUUID } from "node:crypto";
 import type { Queryable } from "../../db/pool.js";
 import { isUniqueViolation } from "../../db/postgres-errors.js";
 import type { Clock } from "../../shared/clock.js";
+import { AppError } from "../../shared/http-errors.js";
 import { generateApiKey, hashApiKey, type RandomBytesSource } from "../auth/api-key.js";
 import {
   API_KEY_HASH_CONSTRAINT,
+  findAccountById,
   insertAccountWithPredefinedPlan,
   type AccountRecord,
 } from "./accounts.repository.js";
@@ -26,6 +28,7 @@ export interface CreatedAccount {
 
 export interface AccountsService {
   readonly createAccount: (name: string) => Promise<CreatedAccount>;
+  readonly getAccount: (accountId: string) => Promise<AccountRecord>;
 }
 
 export interface AccountsServiceDependencies {
@@ -71,5 +74,13 @@ export function createAccountsService(dependencies: AccountsServiceDependencies)
     }
   };
 
-  return { createAccount };
+  const getAccount = async (accountId: string): Promise<AccountRecord> => {
+    const account = await findAccountById(db, accountId);
+    if (account === undefined) {
+      throw new AppError("NOT_FOUND", "Account not found");
+    }
+    return account;
+  };
+
+  return { createAccount, getAccount };
 }

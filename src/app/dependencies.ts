@@ -2,6 +2,7 @@ import type pg from "pg";
 import type { Logger } from "pino";
 import type { Migration } from "../db/migrator.js";
 import { createDatabaseReadinessCheck } from "../db/readiness.js";
+import { findAccountIdByApiKeyHash } from "../modules/accounts/accounts.repository.js";
 import { createAccountsService } from "../modules/accounts/accounts.service.js";
 import type { RandomBytesSource } from "../modules/auth/api-key.js";
 import { systemClock, type Clock } from "../shared/clock.js";
@@ -28,5 +29,9 @@ export function createAppDependencies(
       clock: overrides.clock ?? systemClock,
       ...(overrides.randomBytes === undefined ? {} : { randomBytes: overrides.randomBytes }),
     }),
+    resolveAccountByApiKeyHash: async (apiKeyHash) => {
+      const id = await findAccountIdByApiKeyHash(pool, apiKeyHash);
+      return id === undefined ? undefined : { id };
+    },
   };
 }

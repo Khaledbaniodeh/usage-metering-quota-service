@@ -64,6 +64,35 @@ export async function insertAccountWithPredefinedPlan(
   return row === undefined ? undefined : toAccountRecord(row);
 }
 
+export async function findAccountById(
+  db: Queryable,
+  accountId: string,
+): Promise<AccountRecord | undefined> {
+  const result = await db.query<AccountRow>(
+    `SELECT a.id, a.name, a.created_at, a.updated_at,
+            p.id AS plan_id, p.code AS plan_code, p.name AS plan_name, p.scope AS plan_scope,
+            p.monthly_allowance AS plan_monthly_allowance,
+            p.max_units_per_request AS plan_max_units_per_request
+     FROM accounts a
+     JOIN plans p ON p.id = a.plan_id
+     WHERE a.id = $1`,
+    [accountId],
+  );
+  const row = result.rows[0];
+  return row === undefined ? undefined : toAccountRecord(row);
+}
+
+/** Resolves an API-key digest to its account ID (an index lookup on the unique constraint). */
+export async function findAccountIdByApiKeyHash(
+  db: Queryable,
+  apiKeyHash: Buffer,
+): Promise<string | undefined> {
+  const result = await db.query<{ id: string }>("SELECT id FROM accounts WHERE api_key_hash = $1", [
+    apiKeyHash,
+  ]);
+  return result.rows[0]?.id;
+}
+
 function toAccountRecord(row: AccountRow): AccountRecord {
   return {
     id: row.id,

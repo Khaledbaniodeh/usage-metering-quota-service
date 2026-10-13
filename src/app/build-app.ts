@@ -3,6 +3,11 @@ import Fastify, { type FastifyBaseLogger } from "fastify";
 import type { Logger } from "pino";
 import { accountRoutes } from "../modules/accounts/accounts.routes.js";
 import type { AccountsService } from "../modules/accounts/accounts.service.js";
+import {
+  createAuthenticationHook,
+  registerAuthentication,
+  type ResolveAccountByApiKeyHash,
+} from "../modules/auth/authenticate.js";
 import { healthRoutes, type ReadinessCheck } from "../modules/health/health.routes.js";
 import { registerErrorHandling } from "./error-handler.js";
 import { registerOpenApi } from "./openapi.js";
@@ -11,6 +16,7 @@ export interface AppDependencies {
   readonly logger: Logger;
   readonly checkReadiness: ReadinessCheck;
   readonly accounts: AccountsService;
+  readonly resolveAccountByApiKeyHash: ResolveAccountByApiKeyHash;
 }
 
 /**
@@ -30,9 +36,11 @@ export async function buildApp(dependencies: AppDependencies) {
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   registerErrorHandling(app);
+  registerAuthentication(app);
+  const authenticate = createAuthenticationHook(dependencies.resolveAccountByApiKeyHash);
   await registerOpenApi(app);
   await app.register(healthRoutes, { checkReadiness: dependencies.checkReadiness });
-  await app.register(accountRoutes, { accounts: dependencies.accounts });
+  await app.register(accountRoutes, { accounts: dependencies.accounts, authenticate });
 
   return app;
 }

@@ -1,6 +1,9 @@
 import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
+import type { FastifyRequest } from "fastify";
 import { errorResponseSchemas } from "../../shared/http-errors.js";
+import { requireAuthenticatedAccount } from "../auth/authenticate.js";
 import {
+  AccountSchema,
   CreateAccountBodySchema,
   CreatedAccountSchema,
   type AccountResponse,
@@ -10,6 +13,8 @@ import type { AccountsService } from "./accounts.service.js";
 
 export interface AccountRoutesOptions {
   readonly accounts: AccountsService;
+  /** onRequest hook that authenticates the X-API-Key header. */
+  readonly authenticate: (request: FastifyRequest) => Promise<void>;
 }
 
 export function toAccountResponse(account: AccountRecord): AccountResponse {
@@ -51,6 +56,28 @@ export const accountRoutes: FastifyPluginAsyncTypebox<AccountRoutesOptions> = (a
         .status(201)
         .header("cache-control", "no-store")
         .send({ ...toAccountResponse(account), apiKey });
+    },
+  );
+
+  app.get(
+    "/v1/account",
+    {
+      onRequest: options.authenticate,
+      schema: {
+        tags: ["accounts"],
+        summary: "Get the authenticated account",
+        description:
+          "Returns the account that owns the X-API-Key, with the account plan currently assigned to it.",
+        security: [{ apiKey: [] }],
+        response: {
+          200: AccountSchema,
+          ...errorResponseSchemas("UNAUTHORIZED", "NOT_FOUND", "INTERNAL_ERROR"),
+        },
+      },
+    },
+    async (request) => {
+      const { id } = requireAuthenticatedAccount(request);
+      return toAccountResponse(await options.accounts.getAccount(id));
     },
   );
 
