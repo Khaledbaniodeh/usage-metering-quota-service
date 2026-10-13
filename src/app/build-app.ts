@@ -13,6 +13,8 @@ import type { ConsumptionService } from "../modules/consumption/consume.service.
 import { healthRoutes, type ReadinessCheck } from "../modules/health/health.routes.js";
 import { planRoutes } from "../modules/plans/plans.routes.js";
 import type { PlansService } from "../modules/plans/plans.service.js";
+import { usageRoutes } from "../modules/usage/usage.routes.js";
+import type { UsageService } from "../modules/usage/usage.service.js";
 import { userRoutes } from "../modules/users/users.routes.js";
 import type { UsersService } from "../modules/users/users.service.js";
 import { registerErrorHandling } from "./error-handler.js";
@@ -25,6 +27,7 @@ export interface AppDependencies {
   readonly plans: PlansService;
   readonly users: UsersService;
   readonly consumption: ConsumptionService;
+  readonly usage: UsageService;
   readonly resolveAccountByApiKeyHash: ResolveAccountByApiKeyHash;
 }
 
@@ -53,6 +56,7 @@ export async function buildApp(dependencies: AppDependencies) {
   await app.register(planRoutes, { plans: dependencies.plans, authenticate });
   await app.register(userRoutes, { users: dependencies.users, authenticate });
   await app.register(consumeRoutes, { consumption: dependencies.consumption, authenticate });
+  await app.register(usageRoutes, { usage: dependencies.usage, authenticate });
 
   return app;
 }
