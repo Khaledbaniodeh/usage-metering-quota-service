@@ -1,4 +1,5 @@
 import { Type } from "typebox";
+import { AppError } from "./http-errors.js";
 import { MONTH_KEY_PATTERN } from "./utc-month.js";
 
 /**
@@ -23,6 +24,11 @@ export const MonthQuerySchema = Type.String({
   pattern: MONTH_KEY_PATTERN,
   description: "UTC month as YYYY-MM; a future month is rejected",
 });
+
+/** A month later than the current UTC month cannot have usage or decisions yet. */
+export function futureMonth(): AppError {
+  return new AppError("VALIDATION_ERROR", "month must not be in the future");
+}
 
 /** Any string: the decoder reports every defect as the same 400 "Invalid cursor". */
 export const CursorQuerySchema = Type.String({

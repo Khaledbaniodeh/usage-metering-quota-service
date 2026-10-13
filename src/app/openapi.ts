@@ -37,6 +37,7 @@ export async function registerOpenApi(app: FastifyInstance): Promise<void> {
         { name: "users", description: "Users of the authenticated account" },
         { name: "consumption", description: "Quota decisions and idempotent consumption" },
         { name: "usage", description: "Monthly usage of the account and its users" },
+        { name: "history", description: "Stored consume decisions" },
       ],
     },
   });

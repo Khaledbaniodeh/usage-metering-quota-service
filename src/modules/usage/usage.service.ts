@@ -2,6 +2,7 @@ import type { Queryable } from "../../db/pool.js";
 import type { Clock } from "../../shared/clock.js";
 import { decodeCursor, encodeCursor, invalidCursor } from "../../shared/cursor.js";
 import { AppError } from "../../shared/http-errors.js";
+import { futureMonth } from "../../shared/query-params.js";
 import { isFutureMonth, monthStartOf, utcMonthKey } from "../../shared/utc-month.js";
 import { remainingAllowance } from "../consumption/consume.domain.js";
 import { findUserSeq } from "../users/users.repository.js";
@@ -81,10 +82,6 @@ export interface UsageService {
 export interface UsageServiceDependencies {
   readonly db: Queryable;
   readonly clock: Clock;
-}
-
-export function futureMonth(): AppError {
-  return new AppError("VALIDATION_ERROR", "month must not be in the future");
 }
 
 /** The requested month (default: the current UTC month) and whether it is the current one. */
