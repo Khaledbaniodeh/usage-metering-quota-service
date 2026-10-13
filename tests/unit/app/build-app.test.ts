@@ -145,6 +145,32 @@ describe("application contract", () => {
     }
   });
 
+  it("documents POST /v1/consume as protected, with its decision body and every error status", async () => {
+    const instance = await appWithReadiness({ ready: true });
+
+    const response = await instance.inject({ method: "GET", url: "/docs/json" });
+    const document = response.json<{
+      paths: Record<
+        string,
+        Record<
+          string,
+          | { security?: unknown; requestBody?: unknown; responses?: Record<string, unknown> }
+          | undefined
+        >
+      >;
+      tags?: { name: string }[];
+    }>();
+    const operation = new Map(Object.entries(document.paths)).get("/v1/consume")?.post;
+
+    expect(operation?.security).toEqual([{ apiKey: [] }]);
+    expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(
+      ["200", "400", "401", "404", "409", "413", "415", "500", "503"].sort(),
+    );
+    expect(JSON.stringify(operation?.requestBody)).toContain("requestId");
+    expect(JSON.stringify(operation?.responses?.["200"])).toContain("blockingRule");
+    expect(document.tags?.map((tag) => tag.name)).toContain("consumption");
+  });
+
   it("serves the interactive documentation page", async () => {
     const instance = await appWithReadiness({ ready: true });
 

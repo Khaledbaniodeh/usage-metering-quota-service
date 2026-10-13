@@ -15,6 +15,10 @@ export interface IntegrationApp {
 
 export interface IntegrationAppOptions extends DependencyOverrides {
   readonly logger?: Logger;
+  /** Overrides the test configuration's lock timeout (e.g. a short one for BUSY_RETRY tests). */
+  readonly lockTimeoutMs?: number;
+  /** Overrides the test configuration's pool size (e.g. for many concurrent transactions). */
+  readonly poolMax?: number;
 }
 
 /**
@@ -24,10 +28,14 @@ export interface IntegrationAppOptions extends DependencyOverrides {
 export async function createIntegrationApp(
   options: IntegrationAppOptions = {},
 ): Promise<IntegrationApp> {
-  const { logger = createSilentLogger(), ...overrides } = options;
-  const pool = createPool(testConfig().database, logger);
+  const { logger = createSilentLogger(), lockTimeoutMs, poolMax, ...overrides } = options;
+  const database = testConfig().database;
+  const pool = createPool({ ...database, poolMax: poolMax ?? database.poolMax }, logger);
   const app = await buildApp(
-    createAppDependencies(pool, await loadMigrations(), logger, overrides),
+    createAppDependencies(pool, await loadMigrations(), logger, {
+      ...overrides,
+      lockTimeoutMs: lockTimeoutMs ?? database.lockTimeoutMs,
+    }),
   );
   return {
     app,
