@@ -1,0 +1,49 @@
+# Local development stack: `docker compose up --build`
+#
+# All credentials below are LOCAL DEVELOPMENT ONLY defaults. Override them through environment
+# variables or a git-ignored .env file (see .env.example). POSTGRES_PASSWORD must stay URL-safe
+# because it is embedded in DATABASE_URL.
+
+name: usage-metering-quota-service
+
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-usage_metering}
+      POSTGRES_USER: ${POSTGRES_USER:-usage_metering}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-development-only}
+    ports:
+      # Published on the loopback interface only, for local tools and integration tests.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      target: runtime
+    image: usage-metering-quota-service:local
+    # Adds a minimal init process that forwards signals and reaps zombie processes.
+    init: true
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-usage_metering}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-usage_metering}
+      PORT: "8080"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Longer than the service's default SHUTDOWN_TIMEOUT_MS (10 s) so graceful shutdown can finish.
+    stop_grace_period: 15s
+
+volumes:
+  postgres-data:
