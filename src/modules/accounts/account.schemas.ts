@@ -1,19 +1,10 @@
 import { Type, type Static } from "typebox";
+import { displayNameSchema } from "../../shared/display-name.js";
 import { PlanSummarySchema } from "../plans/plan.schemas.js";
 
-/**
- * A display name: one line of printable text. Control characters (C0, DEL and C1, i.e. \p{Cc},
- * which includes NUL that PostgreSQL text cannot store) and the Unicode line/paragraph separators
- * are rejected anywhere; the first and last characters must not be whitespace. Together with the
- * length bounds this is stricter than the accounts_name_format database constraint.
- */
-export const AccountNameSchema = Type.String({
-  minLength: 1,
-  maxLength: 100,
-  pattern: "^[^\\s\\p{Cc}](?:[^\\p{Cc}\\u2028\\u2029]*[^\\s\\p{Cc}])?$",
-  description:
-    "Display name: 1-100 characters on a single line, without control characters or leading or trailing whitespace. Not unique.",
-});
+export const AccountNameSchema = displayNameSchema(
+  "Display name: 1-100 characters on a single line, without control characters or leading or trailing whitespace. Not unique.",
+);
 
 export const CreateAccountBodySchema = Type.Object(
   { name: AccountNameSchema },

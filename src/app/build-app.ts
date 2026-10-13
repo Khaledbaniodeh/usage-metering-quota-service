@@ -9,6 +9,10 @@ import {
   type ResolveAccountByApiKeyHash,
 } from "../modules/auth/authenticate.js";
 import { healthRoutes, type ReadinessCheck } from "../modules/health/health.routes.js";
+import { planRoutes } from "../modules/plans/plans.routes.js";
+import type { PlansService } from "../modules/plans/plans.service.js";
+import { userRoutes } from "../modules/users/users.routes.js";
+import type { UsersService } from "../modules/users/users.service.js";
 import { registerErrorHandling } from "./error-handler.js";
 import { registerOpenApi } from "./openapi.js";
 
@@ -16,6 +20,8 @@ export interface AppDependencies {
   readonly logger: Logger;
   readonly checkReadiness: ReadinessCheck;
   readonly accounts: AccountsService;
+  readonly plans: PlansService;
+  readonly users: UsersService;
   readonly resolveAccountByApiKeyHash: ResolveAccountByApiKeyHash;
 }
 
@@ -41,6 +47,8 @@ export async function buildApp(dependencies: AppDependencies) {
   await registerOpenApi(app);
   await app.register(healthRoutes, { checkReadiness: dependencies.checkReadiness });
   await app.register(accountRoutes, { accounts: dependencies.accounts, authenticate });
+  await app.register(planRoutes, { plans: dependencies.plans, authenticate });
+  await app.register(userRoutes, { users: dependencies.users, authenticate });
 
   return app;
 }
