@@ -7,7 +7,7 @@ import { loadMigrations } from "../../../../src/db/migrator.js";
 import { createPool } from "../../../../src/db/pool.js";
 import { createDatabaseReadinessCheck } from "../../../../src/db/readiness.js";
 import { createSilentLogger } from "../../../helpers/logger.js";
-import { resolveNoApiKeys, unusedAccountsService } from "../../../helpers/app-stubs.js";
+import { testAppDependencies } from "../../../helpers/app-stubs.js";
 import {
   copyProjectMigrations,
   type MigrationFixture,
@@ -30,12 +30,12 @@ async function appFor(databaseUrl?: string): Promise<App> {
   const config = testConfig(databaseUrl);
   const logger = createSilentLogger();
   pool = createPool({ ...config.database, connectionTimeoutMs: 1_000 }, logger);
-  app = await buildApp({
-    accounts: unusedAccountsService,
-    resolveAccountByApiKeyHash: resolveNoApiKeys,
-    logger,
-    checkReadiness: createDatabaseReadinessCheck(pool, await loadMigrations(), logger),
-  });
+  app = await buildApp(
+    testAppDependencies({
+      logger,
+      checkReadiness: createDatabaseReadinessCheck(pool, await loadMigrations(), logger),
+    }),
+  );
   return app;
 }
 

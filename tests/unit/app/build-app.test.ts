@@ -3,7 +3,7 @@ import { buildApp, type App } from "../../../src/app/build-app.js";
 import type { ReadinessResult } from "../../../src/modules/health/health.routes.js";
 import { createLogger } from "../../../src/shared/logger.js";
 import { createSilentLogger } from "../../helpers/logger.js";
-import { resolveNoApiKeys, unusedAccountsService } from "../../helpers/app-stubs.js";
+import { testAppDependencies } from "../../helpers/app-stubs.js";
 
 // These tests exercise HTTP routing, the error contract and OpenAPI generation with an injected
 // readiness result. Readiness against a real PostgreSQL database is covered by integration tests.
@@ -11,12 +11,12 @@ import { resolveNoApiKeys, unusedAccountsService } from "../../helpers/app-stubs
 let app: App | undefined;
 
 async function appWithReadiness(result: ReadinessResult): Promise<App> {
-  app = await buildApp({
-    accounts: unusedAccountsService,
-    resolveAccountByApiKeyHash: resolveNoApiKeys,
-    logger: createSilentLogger(),
-    checkReadiness: () => Promise.resolve(result),
-  });
+  app = await buildApp(
+    testAppDependencies({
+      logger: createSilentLogger(),
+      checkReadiness: () => Promise.resolve(result),
+    }),
+  );
   return app;
 }
 
@@ -27,12 +27,12 @@ afterEach(async () => {
 
 describe("health routes", () => {
   it("reports liveness without consulting readiness", async () => {
-    const instance = await buildApp({
-      accounts: unusedAccountsService,
-      resolveAccountByApiKeyHash: resolveNoApiKeys,
-      logger: createSilentLogger(),
-      checkReadiness: () => Promise.reject(new Error("must not be called")),
-    });
+    const instance = await buildApp(
+      testAppDependencies({
+        logger: createSilentLogger(),
+        checkReadiness: () => Promise.reject(new Error("must not be called")),
+      }),
+    );
     app = instance;
 
     const response = await instance.inject({ method: "GET", url: "/health/live" });
@@ -65,12 +65,12 @@ describe("health routes", () => {
   });
 
   it("answers unhandled readiness failures with a generic 500", async () => {
-    const instance = await buildApp({
-      accounts: unusedAccountsService,
-      resolveAccountByApiKeyHash: resolveNoApiKeys,
-      logger: createSilentLogger(),
-      checkReadiness: () => Promise.reject(new Error("password=hunter2 leaked in driver error")),
-    });
+    const instance = await buildApp(
+      testAppDependencies({
+        logger: createSilentLogger(),
+        checkReadiness: () => Promise.reject(new Error("password=hunter2 leaked in driver error")),
+      }),
+    );
     app = instance;
 
     const response = await instance.inject({ method: "GET", url: "/health/ready" });
@@ -127,12 +127,12 @@ describe("application contract", () => {
 describe("request logging", () => {
   it("keeps successful health probes out of the logs but still logs other requests", async () => {
     const lines: string[] = [];
-    const instance = await buildApp({
-      accounts: unusedAccountsService,
-      resolveAccountByApiKeyHash: resolveNoApiKeys,
-      logger: createLogger("info", { write: (line: string) => lines.push(line) }),
-      checkReadiness: () => Promise.resolve({ ready: true }),
-    });
+    const instance = await buildApp(
+      testAppDependencies({
+        logger: createLogger("info", { write: (line: string) => lines.push(line) }),
+        checkReadiness: () => Promise.resolve({ ready: true }),
+      }),
+    );
     app = instance;
 
     await instance.inject({ method: "GET", url: "/health/live" });
@@ -145,12 +145,12 @@ describe("request logging", () => {
 
   it("still logs a failed readiness check as a warning", async () => {
     const lines: string[] = [];
-    const instance = await buildApp({
-      accounts: unusedAccountsService,
-      resolveAccountByApiKeyHash: resolveNoApiKeys,
-      logger: createLogger("info", { write: (line: string) => lines.push(line) }),
-      checkReadiness: () => Promise.resolve({ ready: false, reason: "DATABASE_UNAVAILABLE" }),
-    });
+    const instance = await buildApp(
+      testAppDependencies({
+        logger: createLogger("info", { write: (line: string) => lines.push(line) }),
+        checkReadiness: () => Promise.resolve({ ready: false, reason: "DATABASE_UNAVAILABLE" }),
+      }),
+    );
     app = instance;
 
     await instance.inject({ method: "GET", url: "/health/ready" });

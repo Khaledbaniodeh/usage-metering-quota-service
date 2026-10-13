@@ -8,6 +8,7 @@ import {
   requireAuthenticatedAccount,
   type ResolveAccountByApiKeyHash,
 } from "../../../../src/modules/auth/authenticate.js";
+import { testAppDependencies } from "../../../helpers/app-stubs.js";
 import { createCapturingLogger } from "../../../helpers/logger.js";
 
 // Synthetic keys built from fixed bytes; never keys issued by the service.
@@ -47,15 +48,16 @@ async function appWithKnownKey(): Promise<App> {
   };
   const capture = createCapturingLogger();
   logLines = capture.lines;
-  app = await buildApp({
-    logger: capture.logger,
-    checkReadiness: () => Promise.resolve({ ready: true }),
-    accounts: {
-      createAccount: () => Promise.reject(new Error("not used")),
-      getAccount: (id) => Promise.resolve({ ...ACCOUNT, id }),
-    },
-    resolveAccountByApiKeyHash: resolve,
-  });
+  app = await buildApp(
+    testAppDependencies({
+      logger: capture.logger,
+      accounts: {
+        createAccount: () => Promise.reject(new Error("not used")),
+        getAccount: (id) => Promise.resolve({ ...ACCOUNT, id }),
+      },
+      resolveAccountByApiKeyHash: resolve,
+    }),
+  );
   return app;
 }
 
