@@ -45,7 +45,7 @@ no import-time side effects. The example client talks to the service over HTTP o
 
 ## Source layout
 
-Directories are created when a phase adds real code to them. As of Phase 2:
+Directories are created when a phase adds real code to them. As of Phase 3:
 
 ```
 src/
@@ -57,12 +57,14 @@ src/
                        PostgreSQL error classification
     migrations/        forward-only SQL files (NNNN_name.sql), copied into dist/ by the build
   modules/
-    accounts/          account schemas, routes, service and repository
+    accounts/          account schemas, routes, service and repository; account plan switching
     auth/              API-key primitives and the X-API-Key authentication hook
     health/            liveness and readiness routes; owns the readiness port
-    plans/             the shared plan representation (plan APIs arrive in Phase 3)
+    plans/             plan schemas, routes, service and repository; the shared plan summary
+                       columns and the plan-assignment outcome used by accounts and users
+    users/             user schemas, routes, service and repository; user plan switching
   shared/              cross-cutting pieces with one clear owner each: clock, logger, error
-                       catalogue, HTTP error contract
+                       catalogue, HTTP error contract, display-name schema
 tests/
   unit/                no database; mirrors src/
   integration/         real PostgreSQL; mirrors src/
@@ -172,6 +174,38 @@ only from the stored decision record, so a retry receives exactly the same body.
 - **Error catalogue** (`src/shared/error-catalogue.ts`): every public code is defined once with its
   HTTP status and default message, and the compiler rejects a catalogue that misses or adds a code.
   Routes declare their error responses from the catalogue, so OpenAPI lists the exact codes.
+
+## Plans, users and plan assignment
+
+- **Tenant boundary:** every query takes the authenticated account ID from the authentication hook
+  and filters on it inside the statement that reads or changes data; no client-supplied field can
+  name an account. Visible plans are `owner_account_id IS NULL OR owner_account_id = <account>`.
+  Unknown resources and other accounts' resources produce byte-identical 404 responses.
+- **Plans:** `GET /v1/plans` returns the predefined plans, then the account's custom plans, each
+  group in creation order, in one query. `POST /v1/plans` stores the authenticated account as
+  owner and `code` as NULL. `PATCH /v1/plans/{planId}` is one statement: a CTE classifies the plan
+  as visible or not and predefined or not, and the `UPDATE` itself is restricted to
+  `owner_account_id = <account>`, so it can never touch a predefined or foreign plan; the schema's
+  plan trigger additionally keeps predefined plans read-only and scope, owner and code immutable.
+  Limits are JSON integers from 1 to 1,000,000,000, validated without type coercion, and match the
+  database CHECK constraints. Account, user and plan names share one display-name schema
+  (`src/shared/display-name.ts`).
+- **Users:** creation resolves the predefined `basic` plan by code and inserts the user with it in
+  one statement. The list is one `users JOIN plans` query ordered by `seq` (no N+1; a test counts
+  the queries for 1 and 5 users). Lookups filter on `account_id` and `id` together.
+- **Plan switching** (`PUT /v1/account/plan`, `PUT /v1/users/{userId}/plan`): one statement per
+  request. CTEs check that the target exists in the account and that the plan is visible; the
+  `UPDATE ... FROM plan` requires the target's account and the plan's scope in its own `WHERE`
+  clause, so ownership and scope are enforced by the statement that writes, not by an earlier
+  read. The same statement returns diagnostics for the error order: unknown or foreign user (404),
+  unknown or foreign plan (404), wrong scope (409 `PLAN_SCOPE_MISMATCH`). The composite
+  `(plan_id, plan_scope)` foreign keys also reject a wrong-scope plan at the database level.
+- **No-op reassignment:** `updated_at = CASE WHEN plan_id = <new plan> THEN updated_at ELSE now END`.
+  Assigning the current plan returns 200 with the unchanged row. Because the `CASE` is evaluated
+  on the locked, latest row version, racing identical switches change the plan once and keep one
+  `updatedAt` (covered by a concurrency test).
+- **Clock:** each mutation reads the injected clock once and uses that value for every timestamp
+  it writes.
 
 ## Startup, health and shutdown
 

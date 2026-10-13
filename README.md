@@ -7,7 +7,7 @@ it.
 
 ## Status
 
-**Implementation Phase 2: accounts, API keys and authentication.**
+**Implementation Phase 3: plans, users and plan assignment.**
 
 Implemented so far:
 
@@ -17,13 +17,15 @@ Implemented so far:
   history, created by a forward-only migration runner, plus the four predefined plans.
 - Account creation with a one-time API key, X-API-Key authentication and the authenticated
   account endpoint.
+- Plan listing, custom plans (create and update) and account-scoped users, with plan switching
+  for the account and each of its users under strict tenant isolation.
 - One catalogue of stable error codes behind a single JSON error shape.
 - Liveness and readiness endpoints and generated OpenAPI documentation.
 - Production Docker image and a Docker Compose stack (service + PostgreSQL).
 - Unit tests, and integration tests against a real PostgreSQL database, including an
   account-isolation harness.
 
-**Not implemented yet:** plan and user APIs, usage consumption, usage and history APIs, the example
+**Not implemented yet:** usage consumption, usage and history APIs, the example
 client and load tests. They arrive in later, separately verified phases described in
 [docs/architecture.md](docs/architecture.md).
 
@@ -102,7 +104,9 @@ characters or leading or trailing whitespace; names do not need to be unique. Un
 rejected.
 
 ```bash
-curl -s -X POST http://127.0.0.1:8080/v1/accounts   -H "Content-Type: application/json"   -d '{"name": "Acme"}'
+curl -s -X POST http://127.0.0.1:8080/v1/accounts \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Acme"}'
 ```
 
 Response `201 Created` (values shortened):
@@ -155,15 +159,100 @@ response, so callers cannot tell which check failed:
 Every error uses the shape `{ "error": { "code": "...", "message": "..." } }`. Codes are stable and
 defined once in [src/shared/error-catalogue.ts](src/shared/error-catalogue.ts):
 
-| Code                                                                        | HTTP     | Meaning                                                 |
-| --------------------------------------------------------------------------- | -------- | ------------------------------------------------------- |
-| `VALIDATION_ERROR`, `BAD_REQUEST`                                           | 400      | The request is invalid or could not be parsed           |
-| `UNAUTHORIZED`                                                              | 401      | A valid API key is required                             |
-| `NOT_FOUND`                                                                 | 404      | The route or resource does not exist                    |
-| `CONFLICT`, `IDEMPOTENCY_CONFLICT`, `PLAN_READ_ONLY`, `PLAN_SCOPE_MISMATCH` | 409      | The request conflicts with current state (later phases) |
-| `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`                               | 413, 415 | The body is too large or not JSON                       |
-| `BUSY_RETRY`, `SERVICE_UNAVAILABLE`                                         | 503      | Retry later (`BUSY_RETRY`) or the service is not ready  |
-| `INTERNAL_ERROR`                                                            | 500      | Unexpected failure; no internal details are returned    |
+| Code                                                                        | HTTP     | Meaning                                                |
+| --------------------------------------------------------------------------- | -------- | ------------------------------------------------------ |
+| `VALIDATION_ERROR`, `BAD_REQUEST`                                           | 400      | The request is invalid or could not be parsed          |
+| `UNAUTHORIZED`                                                              | 401      | A valid API key is required                            |
+| `NOT_FOUND`                                                                 | 404      | The route or resource does not exist                   |
+| `CONFLICT`, `IDEMPOTENCY_CONFLICT`, `PLAN_READ_ONLY`, `PLAN_SCOPE_MISMATCH` | 409      | The request conflicts with current state               |
+| `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`                               | 413, 415 | The body is too large or not JSON                      |
+| `BUSY_RETRY`, `SERVICE_UNAVAILABLE`                                         | 503      | Retry later (`BUSY_RETRY`) or the service is not ready |
+| `INTERNAL_ERROR`                                                            | 500      | Unexpected failure; no internal details are returned   |
+
+## Plans and users
+
+All endpoints below require `X-API-Key` and act only on the authenticated account. An unknown ID
+and an ID that belongs to another account always receive the same response, so callers cannot
+discover other accounts' resources.
+
+| Endpoint                      | Purpose                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| `GET /v1/plans`               | Predefined plans, then the account's own custom plans (`?scope=` filters) |
+| `POST /v1/plans`              | Create a custom plan owned by the account                                 |
+| `PATCH /v1/plans/{planId}`    | Change the name or limits of one of the account's custom plans            |
+| `POST /v1/users`              | Register a user; it starts on the predefined Basic plan                   |
+| `GET /v1/users`               | The account's users with their plans, oldest first                        |
+| `GET /v1/users/{userId}`      | One user of the account with its plan                                     |
+| `PUT /v1/users/{userId}/plan` | Switch a user's plan                                                      |
+| `PUT /v1/account/plan`        | Switch the account's plan                                                 |
+
+### Plans
+
+Every plan has a scope: `ACCOUNT` plans apply to the account's shared allowance and `USER` plans to
+each user's own allowance. The four predefined plans are visible to every account and read-only:
+
+| Code      | Scope   | Monthly allowance | Max units per request |
+| --------- | ------- | ----------------- | --------------------- |
+| `starter` | ACCOUNT | 10,000            | 100                   |
+| `pro`     | ACCOUNT | 100,000           | 1,000                 |
+| `basic`   | USER    | 1,000             | 20                    |
+| `premium` | USER    | 10,000            | 100                   |
+
+`GET /v1/plans?scope=ACCOUNT` or `?scope=USER` (exact upper case) narrows the list. Custom plans
+have `"code": null` and are visible only to the account that created them:
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/v1/plans \
+  -H "X-API-Key: $UMQS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Team", "scope": "ACCOUNT", "monthlyAllowance": 50000, "maxUnitsPerRequest": 500}'
+```
+
+- Names follow the account-name rules; limits are JSON integers from 1 to 1,000,000,000 (strings
+  such as `"500"` are rejected, never converted).
+- `PATCH /v1/plans/{planId}` accepts any non-empty subset of `name`, `monthlyAllowance` and
+  `maxUnitsPerRequest`; the scope cannot change. A predefined plan returns
+  `409 PLAN_READ_ONLY`. Accounts and users already on the plan see the new limits immediately.
+
+### Users
+
+`POST /v1/users` with `{"name": "..."}` registers a user under the authenticated account on the
+predefined Basic plan; the plan is assigned in the same statement that creates the user. User names
+follow the account-name rules and need not be unique. The response (also used by `GET` and the
+plan switch) is:
+
+```json
+{
+  "id": "<user-id>",
+  "name": "Ada",
+  "createdAt": "2026-10-13T09:30:15.123Z",
+  "updatedAt": "2026-10-13T09:30:15.123Z",
+  "plan": {
+    "id": "b0000000-0000-4000-8000-000000000001",
+    "code": "basic",
+    "name": "Basic",
+    "scope": "USER",
+    "monthlyAllowance": 1000,
+    "maxUnitsPerRequest": 20
+  }
+}
+```
+
+`GET /v1/users` returns `{"users": [...]}` in creation order. An unknown user and another
+account's user both return `404 NOT_FOUND` with the message `User not found`.
+
+### Switching plans
+
+`PUT /v1/account/plan` and `PUT /v1/users/{userId}/plan` take `{"planId": "<uuid>"}` and return the
+updated account or user. The plan must be a predefined plan or one of the account's own custom
+plans, of the matching scope. Checks apply in this order:
+
+1. Unknown or foreign user: `404 NOT_FOUND`, `User not found`.
+2. Unknown or foreign plan: `404 NOT_FOUND`, `Plan not found`.
+3. A plan of the other scope (for example `premium` for the account): `409 PLAN_SCOPE_MISMATCH`.
+
+A failed switch changes nothing. Assigning the plan that is already assigned succeeds and returns
+the unchanged resource, including its previous `updatedAt`; a real change sets `updatedAt`.
 
 ## Health checks and API documentation
 
