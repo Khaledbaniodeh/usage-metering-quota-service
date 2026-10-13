@@ -7,22 +7,25 @@ it.
 
 ## Status
 
-**Implementation Phase 1: infrastructure and database foundation.**
+**Implementation Phase 2: accounts, API keys and authentication.**
 
 Implemented so far:
 
-- Fastify 5 service with strictly validated configuration, structured JSON logging with credential
-  redaction, and graceful startup and shutdown.
+- Fastify 5 service with strictly validated configuration and request bodies, structured JSON
+  logging with credential redaction, and graceful startup and shutdown.
 - PostgreSQL schema for plans, accounts, users, monthly usage counters and the immutable decision
   history, created by a forward-only migration runner, plus the four predefined plans.
+- Account creation with a one-time API key, X-API-Key authentication and the authenticated
+  account endpoint.
+- One catalogue of stable error codes behind a single JSON error shape.
 - Liveness and readiness endpoints and generated OpenAPI documentation.
 - Production Docker image and a Docker Compose stack (service + PostgreSQL).
-- Unit tests and integration tests against a real PostgreSQL database.
+- Unit tests, and integration tests against a real PostgreSQL database, including an
+  account-isolation harness.
 
-**Not implemented yet:** API keys and authentication, account, plan and user APIs, usage
-consumption, usage and history APIs, the example client and load tests. They arrive in later,
-separately verified phases described in [docs/architecture.md](docs/architecture.md). The service
-does not offer any business endpoint yet.
+**Not implemented yet:** plan and user APIs, usage consumption, usage and history APIs, the example
+client and load tests. They arrive in later, separately verified phases described in
+[docs/architecture.md](docs/architecture.md).
 
 ## Prerequisites
 
@@ -90,6 +93,77 @@ Each migration runs in its own transaction, and a PostgreSQL advisory lock ensur
 instance migrates at a time. The same runner is used by `npm run db:migrate` and by service
 startup; inside the container you can also run `docker compose run --rm api node dist/db/migrate-cli.js`.
 
+## Accounts and API keys
+
+### Create an account
+
+`POST /v1/accounts` is public. The name must be 1-100 characters on a single line, without leading
+or trailing whitespace; names do not need to be unique. Unknown fields are rejected.
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/v1/accounts   -H "Content-Type: application/json"   -d '{"name": "Acme"}'
+```
+
+Response `201 Created` (values shortened):
+
+```json
+{
+  "id": "<account-id>",
+  "name": "Acme",
+  "createdAt": "2026-10-13T09:30:15.123Z",
+  "updatedAt": "2026-10-13T09:30:15.123Z",
+  "plan": {
+    "id": "a0000000-0000-4000-8000-000000000001",
+    "code": "starter",
+    "name": "Starter",
+    "scope": "ACCOUNT",
+    "monthlyAllowance": 10000,
+    "maxUnitsPerRequest": 100
+  },
+  "apiKey": "umqs_<43 characters>"
+}
+```
+
+- **The API key is shown only once.** Store it securely: the response is sent with
+  `Cache-Control: no-store`, and the service keeps only the SHA-256 digest of the key, so it can
+  never show the key again. Lost keys cannot be recovered; key rotation is out of scope.
+- **Every new account starts on the predefined Starter plan** (10,000 units per month, at most 100
+  per request).
+- Keys have the form `umqs_` followed by 43 base64url characters (32 random bytes).
+
+### Authenticate
+
+Protected endpoints require the key in the `X-API-Key` header, exactly once and unmodified. The
+example below reads it from an environment variable instead of pasting it into the command:
+
+```bash
+export UMQS_API_KEY='<your-api-key>'
+curl -s http://127.0.0.1:8080/v1/account -H "X-API-Key: $UMQS_API_KEY"
+```
+
+`GET /v1/account` returns the account that owns the key, with its assigned plan (the creation
+response without `apiKey`). A missing, repeated, malformed or unknown key always receives the same
+response, so callers cannot tell which check failed:
+
+```json
+{ "error": { "code": "UNAUTHORIZED", "message": "A valid API key is required" } }
+```
+
+### Error responses
+
+Every error uses the shape `{ "error": { "code": "...", "message": "..." } }`. Codes are stable and
+defined once in [src/shared/error-catalogue.ts](src/shared/error-catalogue.ts):
+
+| Code                                                                        | HTTP     | Meaning                                                 |
+| --------------------------------------------------------------------------- | -------- | ------------------------------------------------------- |
+| `VALIDATION_ERROR`, `BAD_REQUEST`                                           | 400      | The request is invalid or could not be parsed           |
+| `UNAUTHORIZED`                                                              | 401      | A valid API key is required                             |
+| `NOT_FOUND`                                                                 | 404      | The route or resource does not exist                    |
+| `CONFLICT`, `IDEMPOTENCY_CONFLICT`, `PLAN_READ_ONLY`, `PLAN_SCOPE_MISMATCH` | 409      | The request conflicts with current state (later phases) |
+| `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`                               | 413, 415 | The body is too large or not JSON                       |
+| `BUSY_RETRY`, `SERVICE_UNAVAILABLE`                                         | 503      | Retry later (`BUSY_RETRY`) or the service is not ready  |
+| `INTERNAL_ERROR`                                                            | 500      | Unexpected failure; no internal details are returned    |
+
 ## Health checks and API documentation
 
 | Endpoint            | Meaning                                                                                           |
@@ -115,6 +189,10 @@ set through `TEST_DATABASE_URL` (in `.env` locally). With the Compose database r
 docker compose up --detach postgres
 npm test
 ```
+
+If port 5432 is already taken on your machine, start the database on another port and point the
+tests at it, for example `POSTGRES_HOST_PORT=15432` with
+`TEST_DATABASE_URL=postgres://usage_metering:local-development-only@127.0.0.1:15432/usage_metering_test`.
 
 Test database safety:
 

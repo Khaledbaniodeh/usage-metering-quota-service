@@ -45,26 +45,33 @@ no import-time side effects. The example client talks to the service over HTTP o
 
 ## Source layout
 
-Directories are created when a phase adds real code to them. As of Phase 1:
+Directories are created when a phase adds real code to them. As of Phase 2:
 
 ```
 src/
   main.ts              process entry: configuration, logger, startup, signals, shutdown deadline
-  app/                 Fastify construction (build-app), error contract, OpenAPI, server lifecycle
+  app/                 Fastify construction (build-app), production wiring (dependencies), error
+                       contract, OpenAPI, server lifecycle
   config/              the single configuration parser (every environment variable is read here)
-  db/                  pool, type conversions, migration runner and CLI, readiness check
+  db/                  pool, type conversions, migration runner and CLI, readiness check,
+                       PostgreSQL error classification
     migrations/        forward-only SQL files (NNNN_name.sql), copied into dist/ by the build
   modules/
+    accounts/          account schemas, routes, service and repository
+    auth/              API-key primitives and the X-API-Key authentication hook
     health/            liveness and readiness routes; owns the readiness port
-  shared/              cross-cutting pieces with one clear owner each: logger, HTTP error contract
+    plans/             the shared plan representation (plan APIs arrive in Phase 3)
+  shared/              cross-cutting pieces with one clear owner each: clock, logger, error
+                       catalogue, HTTP error contract
 tests/
   unit/                no database; mirrors src/
   integration/         real PostgreSQL; mirrors src/
-  helpers/             test database lifecycle and guard, fixtures, silent logger
+  helpers/             test database lifecycle and guard, application builder, account-isolation
+                       harness, fixtures, loggers
 ```
 
-Feature code (accounts, plans, users, usage, consumption) will live in `src/modules/<feature>/`,
-each module containing its routes, service and repository. SQL migrations stay in `src/db/migrations/`,
+Feature code (plans, users, usage, consumption) lives in `src/modules/<feature>/`, each module
+containing its schemas, routes, service and repository. SQL migrations stay in `src/db/migrations/`,
 separate from the runtime queries in module repositories.
 
 ## Data model summary
@@ -142,6 +149,29 @@ only from the stored decision record, so a retry receives exactly the same body.
 - **Bounded waiting:** a lock timeout returns `503 BUSY_RETRY` with `Retry-After`; retrying with
   the same `requestId` is safe.
 - **Clock:** one injected application clock, UTC, millisecond precision, captured once per request.
+
+## Accounts, API keys and authentication
+
+- **Account creation** (`POST /v1/accounts`, public): the name is validated by a strict schema
+  (1-100 characters, single line, already trimmed, no unknown fields; request validation never
+  coerces types). The service reads the clock once, generates the account UUID and inserts the
+  account in one statement that resolves the predefined plan by its code (`starter`) and assigns
+  it atomically.
+- **API keys:** `umqs_` followed by 32 bytes from `node:crypto` as 43 unpadded base64url
+  characters. Only the SHA-256 digest of the whole key is stored (`accounts.api_key_hash`, unique).
+  A 256-bit random key cannot be guessed or precomputed, so a fast deterministic hash is enough and
+  allows an indexed lookup; salts or slow hashes would add cost without adding safety. The raw key
+  appears once, in the 201 response (sent with `Cache-Control: no-store`). A digest collision is
+  retried with a fresh key up to three times. Key rotation is out of scope.
+- **Authentication:** an `onRequest` hook on protected routes reads `X-API-Key` from the raw header
+  list (a repeated header is rejected rather than joined), uses it unmodified, checks its format,
+  hashes it and resolves the account by digest. The account is never taken from client-supplied
+  IDs. Missing, repeated, malformed and unknown keys receive the identical `401 UNAUTHORIZED`
+  response, and malformed keys never reach the database. Routes read the typed authenticated
+  account through `requireAuthenticatedAccount`. `GET /v1/account` is the first protected route.
+- **Error catalogue** (`src/shared/error-catalogue.ts`): every public code is defined once with its
+  HTTP status and default message, and the compiler rejects a catalogue that misses or adds a code.
+  Routes declare their error responses from the catalogue, so OpenAPI lists the exact codes.
 
 ## Startup, health and shutdown
 
