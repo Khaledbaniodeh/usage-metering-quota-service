@@ -115,6 +115,36 @@ describe("application contract", () => {
     );
   });
 
+  it("documents every plan and user operation as protected, with its error responses", async () => {
+    const instance = await appWithReadiness({ ready: true });
+
+    const response = await instance.inject({ method: "GET", url: "/docs/json" });
+    const document = response.json<{
+      paths: Record<
+        string,
+        Record<string, { security?: unknown; responses?: Record<string, unknown> } | undefined>
+      >;
+    }>();
+    const paths = new Map(Object.entries(document.paths));
+
+    const operations: [path: string, method: string, statuses: string[]][] = [
+      ["/v1/plans", "get", ["200", "400", "401"]],
+      ["/v1/plans", "post", ["201", "400", "401"]],
+      ["/v1/plans/{planId}", "patch", ["200", "400", "401", "404", "409"]],
+      ["/v1/users", "get", ["200", "400", "401"]],
+      ["/v1/users", "post", ["201", "400", "401"]],
+      ["/v1/users/{userId}", "get", ["200", "400", "401", "404"]],
+      ["/v1/users/{userId}/plan", "put", ["200", "400", "401", "404", "409"]],
+      ["/v1/account/plan", "put", ["200", "400", "401", "404", "409"]],
+    ];
+    for (const [path, method, statuses] of operations) {
+      const operation = new Map(Object.entries(paths.get(path) ?? {})).get(method);
+      expect(operation, `${method.toUpperCase()} ${path}`).toBeDefined();
+      expect(operation?.security).toEqual([{ apiKey: [] }]);
+      expect(Object.keys(operation?.responses ?? {})).toEqual(expect.arrayContaining(statuses));
+    }
+  });
+
   it("serves the interactive documentation page", async () => {
     const instance = await appWithReadiness({ ready: true });
 
