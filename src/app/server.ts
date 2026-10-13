@@ -3,8 +3,8 @@ import type { Logger } from "pino";
 import type { AppConfig } from "../config/config.js";
 import { loadMigrations, migrateDatabase } from "../db/migrator.js";
 import { createPool } from "../db/pool.js";
-import { createDatabaseReadinessCheck } from "../db/readiness.js";
 import { buildApp, type App } from "./build-app.js";
+import { createAppDependencies } from "./dependencies.js";
 
 /** The service always listens on every interface inside its container or host. */
 export const LISTEN_HOST = "0.0.0.0";
@@ -45,10 +45,7 @@ export async function startServer(
   const pool = createPool(config.database, logger);
   let app: App | undefined;
   try {
-    app = await buildApp({
-      logger,
-      checkReadiness: createDatabaseReadinessCheck(pool, migrations, logger),
-    });
+    app = await buildApp(createAppDependencies(pool, migrations, logger));
     const address = await app.listen({ host: LISTEN_HOST, port: config.port });
     return { app, pool, address, stop: onceAsync(stopAll(app, pool)) };
   } catch (error) {

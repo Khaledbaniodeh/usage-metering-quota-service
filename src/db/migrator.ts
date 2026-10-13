@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import type { Logger } from "pino";
-import { APPLICATION_NAME } from "./pool.js";
+import { APPLICATION_NAME, type Queryable } from "./pool.js";
 import { typeParsers } from "./type-parsers.js";
 
 /**
@@ -154,8 +154,6 @@ export function compareMigrations(
   const pending = expected.slice(applied.length).map((migration) => migration.name);
   return pending.length === 0 ? { state: "current" } : { state: "pending", pending };
 }
-
-type Queryable = Pick<pg.ClientBase, "query">;
 
 /** Returns the applied migrations in order, or null when schema_migrations does not exist yet. */
 export async function readAppliedMigrations(

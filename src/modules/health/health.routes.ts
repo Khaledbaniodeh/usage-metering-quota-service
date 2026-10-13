@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import { Type } from "typebox";
-import { ErrorResponseSchema, errorResponse } from "../../shared/http-errors.js";
+import { errorResponse, errorResponseSchemas } from "../../shared/http-errors.js";
 
 export type NotReadyReason = "DATABASE_UNAVAILABLE" | "MIGRATIONS_NOT_CURRENT";
 
@@ -67,7 +67,7 @@ export const healthRoutes: FastifyPluginAsyncTypebox<HealthRoutesOptions> = (app
         summary: "Readiness probe",
         description:
           "Reports ready only when PostgreSQL is reachable and the applied migrations exactly match the migrations shipped with this build.",
-        response: { 200: ReadyResponseSchema, 503: ErrorResponseSchema },
+        response: { 200: ReadyResponseSchema, ...errorResponseSchemas("SERVICE_UNAVAILABLE") },
       },
     },
     async (request, reply) => {

@@ -44,3 +44,6 @@ export function describeDatabaseTarget(url: string): DatabaseTarget {
     database: decodeURIComponent(parsed.pathname.slice(1)),
   };
 }
+
+/** Anything that can run a query: the pool, a pooled client or a dedicated client. */
+export type Queryable = Pick<pg.ClientBase, "query">;

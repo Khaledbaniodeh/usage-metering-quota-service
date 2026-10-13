@@ -7,7 +7,7 @@ function clientError(statusCode: number, message: string): Error {
 
 describe("toErrorResponse", () => {
   it("exposes the status, code and message of an AppError", () => {
-    expect(toErrorResponse(new AppError(503, "SERVICE_UNAVAILABLE", "Not ready"))).toEqual({
+    expect(toErrorResponse(new AppError("SERVICE_UNAVAILABLE", "Not ready"))).toEqual({
       statusCode: 503,
       body: { error: { code: "SERVICE_UNAVAILABLE", message: "Not ready" } },
     });
