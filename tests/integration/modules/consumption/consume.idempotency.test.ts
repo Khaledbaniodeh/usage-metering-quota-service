@@ -153,6 +153,56 @@ describe("concurrent duplicates (deterministic)", () => {
   });
 });
 
+describe("idempotency re-check inside the transaction", () => {
+  /**
+   * Both requests pass the fast path while no decision exists, then block on the account counter
+   * lock. The first one to get the lock decides and commits. The second gets the lock, finds the
+   * committed decision with the in-transaction lookup, and must replay it: no evaluation result
+   * persisted, no counter update and no second decision insert even attempted. The statements the
+   * service sends are counted to prove which path ran, since the unique-violation backstop would
+   * otherwise mask a missing re-check.
+   */
+  it("replays a decision committed by a concurrent request without counting or inserting again", async () => {
+    const { account, user } = await freshTenant("Recheck");
+    held = await holdAccountCounterLock(account.id, OCTOBER);
+    const sent = { lookups: 0, counterUpdates: 0, decisionInserts: 0 };
+    restoreQueries = interceptQueries((text) => {
+      const statement = text.trimStart();
+      if (
+        statement.startsWith("SELECT") &&
+        statement.includes("FROM consume_decisions") &&
+        statement.includes("WHERE account_id = $1 AND request_id = $2")
+      ) {
+        sent.lookups += 1;
+      } else if (
+        statement.startsWith("UPDATE account_monthly_usage SET used = used +") ||
+        statement.startsWith("UPDATE user_monthly_usage SET used = used +")
+      ) {
+        sent.counterUpdates += 1;
+      } else if (statement.startsWith("INSERT INTO consume_decisions")) {
+        sent.decisionInserts += 1;
+      }
+      return undefined;
+    });
+    const payload = { userId: user.id, units: 6, requestId: "recheck" };
+
+    const responses = Promise.all([consume(account, payload), consume(account, payload)]);
+    await waitForLockWaiters(2);
+    // Both fast-path lookups ran (and found nothing) before either request could decide.
+    expect(sent).toEqual({ lookups: 2, counterUpdates: 0, decisionInserts: 0 });
+    await held.release();
+    const [first, second] = await within(responses, 10_000, "the two requests");
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(second.body).toBe(first.body);
+    // Two fast-path lookups and two in-transaction lookups; one decision's worth of writes.
+    expect(sent).toEqual({ lookups: 4, counterUpdates: 2, decisionInserts: 1 });
+    expect(await countDecisions(account.id)).toBe(1);
+    expect(await readCounters(account.id, user.id, OCTOBER)).toEqual({ account: 6, user: 6 });
+  });
+});
+
 describe("unique-violation backstop across a UTC month boundary", () => {
   /**
    * R1 (31 October) is paused just before COMMIT, holding the October counter locks and its

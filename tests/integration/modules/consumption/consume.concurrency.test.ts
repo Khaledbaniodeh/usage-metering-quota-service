@@ -7,6 +7,7 @@ import {
 } from "../../../helpers/account-harness.js";
 import {
   holdAccountCounterLock,
+  holdPendingAccountCounterInsert,
   interceptQueries,
   waitForLockWaiters,
   within,
@@ -25,6 +26,7 @@ import {
 } from "../../../helpers/consumption.js";
 import { checkQuotaInvariants, noViolations } from "../../../helpers/quota-invariants.js";
 import { createIntegrationApp, type IntegrationApp } from "../../../helpers/test-app.js";
+import { withTestClient } from "../../../helpers/test-database.js";
 
 /**
  * Quota correctness under concurrency, plan-snapshot consistency, bounded lock waiting and
@@ -298,6 +300,61 @@ describe("allowances under concurrent consumption", () => {
     for (const { account, user } of tenants) {
       expect(await readCounters(account.id, user.id, OCTOBER)).toEqual({ account: 50, user: 50 });
       expect(await countDecisions(account.id)).toBe(15);
+    }
+  });
+});
+
+describe("cold start: the month's counters do not exist yet", () => {
+  async function counterRowCounts(accountId: string, userId: string) {
+    return withTestClient(async (client) => {
+      const result = await client.query<{ accounts: number; users: number }>(
+        `SELECT (SELECT count(*) FROM account_monthly_usage
+                 WHERE account_id = $1 AND month = $3)::int AS accounts,
+                (SELECT count(*) FROM user_monthly_usage
+                 WHERE account_id = $1 AND user_id = $2 AND month = $3)::int AS users`,
+        [accountId, userId, OCTOBER],
+      );
+      return result.rows[0];
+    });
+  }
+
+  it("creates each counter exactly once when concurrent first requests race to create them", async () => {
+    const { account, user } = await freshTenant("Cold Start");
+    await assignUserPlan(integration.app, account, user.id, PREDEFINED_PLAN_IDS.premium);
+    expect(await counterRowCounts(account.id, user.id)).toEqual({ accounts: 0, users: 0 });
+
+    // A pending (uncommitted) insert of the account counter makes every request wait inside its
+    // own INSERT ... ON CONFLICT. Rolling it back leaves no row, so all eight requests then race
+    // to create both counters from nothing at the same moment.
+    const pending = await holdPendingAccountCounterInsert(account.id, OCTOBER);
+    held.push(pending);
+    const requests = Promise.all(
+      Array.from({ length: 8 }, (_, index) =>
+        authenticatedRequest(integration.app, account, {
+          method: "POST",
+          url: "/v1/consume",
+          payload: { userId: user.id, units: index + 1, requestId: `cold-${String(index)}` },
+        }),
+      ),
+    );
+    await waitForLockWaiters(8);
+    await pending.release();
+    const responses = await within(requests, 10_000, "the cold-start requests");
+
+    // No 500 (duplicate key, deadlock) and no 503 under this modest load: every request accepted.
+    expect(responses.map((response) => response.statusCode)).toEqual(Array(8).fill(200));
+    for (const response of responses) {
+      expect(response.json<Decision>().accepted).toBe(true);
+    }
+    const expectedTotal = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8;
+    expect(await counterRowCounts(account.id, user.id)).toEqual({ accounts: 1, users: 1 });
+    expect(await readCounters(account.id, user.id, OCTOBER)).toEqual({
+      account: expectedTotal,
+      user: expectedTotal,
+    });
+    expect(await countDecisions(account.id)).toBe(8);
+    for (let index = 0; index < 8; index += 1) {
+      expect(await countDecisions(account.id, `cold-${String(index)}`)).toBe(1);
     }
   });
 });

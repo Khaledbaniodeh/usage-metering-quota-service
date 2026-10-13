@@ -65,6 +65,48 @@ export async function holdAccountCounterLock(accountId: string, month: string): 
   };
 }
 
+/**
+ * Inserts the account counter row for the month in an open, uncommitted transaction. Consumes
+ * for this account and month block on that pending insert (inside INSERT ... ON CONFLICT) until
+ * `release` rolls it back. The row then never existed, so the blocked consumes race to create
+ * the counters from a cold start.
+ */
+export async function holdPendingAccountCounterInsert(
+  accountId: string,
+  month: string,
+): Promise<HeldLock> {
+  const client = new pg.Client({
+    connectionString: testDatabaseUrl(),
+    types: typeParsers,
+    application_name: "quota-test-lock-holder",
+  });
+  await client.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)", [
+      accountId,
+      month,
+    ]);
+  } catch (error) {
+    await client.end();
+    throw error;
+  }
+  let released = false;
+  return {
+    release: async () => {
+      if (released) {
+        return;
+      }
+      released = true;
+      try {
+        await client.query("ROLLBACK");
+      } finally {
+        await client.end();
+      }
+    },
+  };
+}
+
 /** Application backends (the service's pool) currently waiting for a lock in the test database. */
 export async function countApplicationLockWaiters(): Promise<number> {
   const client = new pg.Client({ connectionString: testDatabaseUrl(), types: typeParsers });
