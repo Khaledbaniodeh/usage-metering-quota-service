@@ -1,6 +1,7 @@
 import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import type { FastifyRequest } from "fastify";
 import { errorResponseSchemas } from "../../shared/http-errors.js";
+import { parseLimit } from "../../shared/query-params.js";
 import { requireAuthenticatedAccount } from "../auth/authenticate.js";
 import { AssignPlanBodySchema } from "../plans/plan.schemas.js";
 import {
@@ -70,7 +71,8 @@ export const userRoutes: FastifyPluginAsyncTypebox<UserRoutesOptions> = (app, op
       schema: {
         tags: ["users"],
         summary: "List the account's users",
-        description: "Every user of the authenticated account with its plan, oldest first.",
+        description:
+          'The authenticated account\'s users with their plans, oldest first, one page at a time (limit 1-100, default 20). Follow nextCursor until it is null; a continuation request may send only cursor (and optionally limit). Any unusable cursor is 400 "Invalid cursor".',
         security: [{ apiKey: [] }],
         querystring: UserListQuerySchema,
         response: {
@@ -81,7 +83,9 @@ export const userRoutes: FastifyPluginAsyncTypebox<UserRoutesOptions> = (app, op
     },
     async (request) => {
       const { id } = requireAuthenticatedAccount(request);
-      return { users: (await users.listUsers(id)).map(toUserResponse) };
+      const { limit, cursor } = request.query;
+      const page = await users.listUsers(id, { limit: parseLimit(limit), cursor });
+      return { users: page.users.map(toUserResponse), nextCursor: page.nextCursor };
     },
   );
 

@@ -81,16 +81,51 @@ export async function findUser(
   return row === undefined ? undefined : toUserRecord(row);
 }
 
-/** All users of the account with their plans, in creation order, in a single query. */
-export async function listUsers(db: Queryable, accountId: string): Promise<UserRecord[]> {
-  const result = await db.query<UserRow>(
-    `SELECT u.id, u.name, u.created_at, u.updated_at, ${planSummaryColumns("p")}
-     FROM users u
-     JOIN plans p ON p.id = u.plan_id
-     WHERE u.account_id = $1
-     ORDER BY u.seq`,
-    [accountId],
+/**
+ * The internal position (seq) of a user of this account, used to resolve a cursor anchor. Another
+ * account's user is indistinguishable from no user.
+ */
+export async function findUserSeq(
+  db: Queryable,
+  accountId: string,
+  userId: string,
+): Promise<number | undefined> {
+  const result = await db.query<{ seq: number }>(
+    "SELECT seq FROM users WHERE account_id = $1 AND id = $2",
+    [accountId, userId],
   );
+  return result.rows[0]?.seq;
+}
+
+/**
+ * Up to `count` users of the account with their plans, oldest first (seq ASC), starting after the
+ * user at position `afterSeq` when given. One query per page, whatever its size.
+ */
+export async function listUsersPage(
+  db: Queryable,
+  accountId: string,
+  afterSeq: number | undefined,
+  count: number,
+): Promise<UserRecord[]> {
+  const select = `SELECT u.id, u.name, u.created_at, u.updated_at, ${planSummaryColumns("p")}
+     FROM users u
+     JOIN plans p ON p.id = u.plan_id`;
+  const result =
+    afterSeq === undefined
+      ? await db.query<UserRow>(
+          `${select}
+           WHERE u.account_id = $1
+           ORDER BY u.seq ASC
+           LIMIT $2`,
+          [accountId, count],
+        )
+      : await db.query<UserRow>(
+          `${select}
+           WHERE u.account_id = $1 AND u.seq > $2
+           ORDER BY u.seq ASC
+           LIMIT $3`,
+          [accountId, afterSeq, count],
+        );
   return result.rows.map(toUserRecord);
 }
 

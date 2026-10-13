@@ -229,7 +229,7 @@ describe("GET /v1/users", () => {
     const response = await getUsers(fresh);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ users: [] });
+    expect(response.json()).toEqual({ users: [], nextCursor: null });
   });
 
   it("lists only the account's own users, oldest first", async () => {
@@ -243,7 +243,7 @@ describe("GET /v1/users", () => {
     const response = await getUsers(owner);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ users: [first, second] });
+    expect(response.json()).toEqual({ users: [first, second], nextCursor: null });
     expect(response.body).not.toContain("Someone Else");
   });
 
