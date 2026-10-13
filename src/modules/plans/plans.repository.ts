@@ -39,6 +39,39 @@ interface PlanRow {
   readonly updated_at: Date;
 }
 
+/** The plan columns a query selects (with `planSummaryColumns`) to embed a plan in another row. */
+export interface PlanSummaryColumns {
+  readonly plan_id: string;
+  readonly plan_code: string | null;
+  readonly plan_name: string;
+  readonly plan_scope: PlanScope;
+  readonly plan_monthly_allowance: number;
+  readonly plan_max_units_per_request: number;
+}
+
+/** SELECT list for PlanSummaryColumns; `alias` is a table alias chosen by the calling query. */
+export function planSummaryColumns(alias: string): string {
+  return [
+    `${alias}.id AS plan_id`,
+    `${alias}.code AS plan_code`,
+    `${alias}.name AS plan_name`,
+    `${alias}.scope AS plan_scope`,
+    `${alias}.monthly_allowance AS plan_monthly_allowance`,
+    `${alias}.max_units_per_request AS plan_max_units_per_request`,
+  ].join(", ");
+}
+
+export function toPlanSummary(row: PlanSummaryColumns): PlanSummary {
+  return {
+    id: row.plan_id,
+    code: row.plan_code,
+    name: row.plan_name,
+    scope: row.plan_scope,
+    monthlyAllowance: row.plan_monthly_allowance,
+    maxUnitsPerRequest: row.plan_max_units_per_request,
+  };
+}
+
 /** One row of updateCustomPlan: plan columns are NULL when no plan was updated (LEFT JOIN). */
 type UpdateResultRow = { readonly [Column in keyof PlanRow]: PlanRow[Column] | null } & {
   readonly visible: boolean;

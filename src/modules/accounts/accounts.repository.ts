@@ -1,5 +1,10 @@
 import type { Queryable } from "../../db/pool.js";
 import type { PlanSummary } from "../plans/plan.schemas.js";
+import {
+  planSummaryColumns,
+  toPlanSummary,
+  type PlanSummaryColumns,
+} from "../plans/plans.repository.js";
 
 export interface AccountRecord {
   readonly id: string;
@@ -21,17 +26,11 @@ export interface NewAccount {
 /** Unique constraint on accounts.api_key_hash (see 0001_baseline_schema.sql). */
 export const API_KEY_HASH_CONSTRAINT = "accounts_api_key_hash_key";
 
-interface AccountRow {
+interface AccountRow extends PlanSummaryColumns {
   readonly id: string;
   readonly name: string;
   readonly created_at: Date;
   readonly updated_at: Date;
-  readonly plan_id: string;
-  readonly plan_code: string | null;
-  readonly plan_name: string;
-  readonly plan_scope: PlanSummary["scope"];
-  readonly plan_monthly_allowance: number;
-  readonly plan_max_units_per_request: number;
 }
 
 /**
@@ -54,9 +53,7 @@ export async function insertAccountWithPredefinedPlan(
        RETURNING id, name, created_at, updated_at
      )
      SELECT inserted.id, inserted.name, inserted.created_at, inserted.updated_at,
-            plan.id AS plan_id, plan.code AS plan_code, plan.name AS plan_name,
-            plan.scope AS plan_scope, plan.monthly_allowance AS plan_monthly_allowance,
-            plan.max_units_per_request AS plan_max_units_per_request
+            ${planSummaryColumns("plan")}
      FROM inserted CROSS JOIN plan`,
     [account.id, account.name, account.apiKeyHash, account.now, account.planCode],
   );
@@ -69,10 +66,7 @@ export async function findAccountById(
   accountId: string,
 ): Promise<AccountRecord | undefined> {
   const result = await db.query<AccountRow>(
-    `SELECT a.id, a.name, a.created_at, a.updated_at,
-            p.id AS plan_id, p.code AS plan_code, p.name AS plan_name, p.scope AS plan_scope,
-            p.monthly_allowance AS plan_monthly_allowance,
-            p.max_units_per_request AS plan_max_units_per_request
+    `SELECT a.id, a.name, a.created_at, a.updated_at, ${planSummaryColumns("p")}
      FROM accounts a
      JOIN plans p ON p.id = a.plan_id
      WHERE a.id = $1`,
@@ -99,13 +93,6 @@ function toAccountRecord(row: AccountRow): AccountRecord {
     name: row.name,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    plan: {
-      id: row.plan_id,
-      code: row.plan_code,
-      name: row.plan_name,
-      scope: row.plan_scope,
-      monthlyAllowance: row.plan_monthly_allowance,
-      maxUnitsPerRequest: row.plan_max_units_per_request,
-    },
+    plan: toPlanSummary(row),
   };
 }

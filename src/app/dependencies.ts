@@ -6,6 +6,7 @@ import { findAccountIdByApiKeyHash } from "../modules/accounts/accounts.reposito
 import { createAccountsService } from "../modules/accounts/accounts.service.js";
 import type { RandomBytesSource } from "../modules/auth/api-key.js";
 import { createPlansService } from "../modules/plans/plans.service.js";
+import { createUsersService } from "../modules/users/users.service.js";
 import { systemClock, type Clock } from "../shared/clock.js";
 import type { AppDependencies } from "./build-app.js";
 
@@ -32,6 +33,7 @@ export function createAppDependencies(
       ...(overrides.randomBytes === undefined ? {} : { randomBytes: overrides.randomBytes }),
     }),
     plans: createPlansService({ db: pool, clock }),
+    users: createUsersService({ db: pool, clock }),
     resolveAccountByApiKeyHash: async (apiKeyHash) => {
       const id = await findAccountIdByApiKeyHash(pool, apiKeyHash);
       return id === undefined ? undefined : { id };

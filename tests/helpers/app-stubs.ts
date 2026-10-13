@@ -2,6 +2,7 @@ import type { AppDependencies } from "../../src/app/build-app.js";
 import type { AccountsService } from "../../src/modules/accounts/accounts.service.js";
 import type { ResolveAccountByApiKeyHash } from "../../src/modules/auth/authenticate.js";
 import type { PlansService } from "../../src/modules/plans/plans.service.js";
+import type { UsersService } from "../../src/modules/users/users.service.js";
 import { createSilentLogger } from "./logger.js";
 
 /**
@@ -23,6 +24,12 @@ export const unusedPlansService: PlansService = {
   updatePlan: unavailable("PlansService"),
 };
 
+export const unusedUsersService: UsersService = {
+  createUser: unavailable("UsersService"),
+  getUser: unavailable("UsersService"),
+  listUsers: unavailable("UsersService"),
+};
+
 /** Knows no API key: every authenticated request is rejected. */
 export const resolveNoApiKeys: ResolveAccountByApiKeyHash = () => Promise.resolve(undefined);
 
@@ -33,6 +40,7 @@ export function testAppDependencies(overrides: Partial<AppDependencies> = {}): A
     checkReadiness: () => Promise.resolve({ ready: true }),
     accounts: unusedAccountsService,
     plans: unusedPlansService,
+    users: unusedUsersService,
     resolveAccountByApiKeyHash: resolveNoApiKeys,
     ...overrides,
   };
