@@ -30,6 +30,7 @@ describe("loadConfig", () => {
       DB_POOL_MAX: "20",
       DB_CONNECTION_TIMEOUT_MS: "3000",
       DB_STATEMENT_TIMEOUT_MS: "7000",
+      DB_LOCK_TIMEOUT_MS: "1500",
     });
 
     expect(config).toEqual({
@@ -41,6 +42,7 @@ describe("loadConfig", () => {
         poolMax: 20,
         connectionTimeoutMs: 3_000,
         statementTimeoutMs: 7_000,
+        lockTimeoutMs: 1_500,
       },
     });
   });
@@ -57,6 +59,7 @@ describe("loadConfig", () => {
         poolMax: 10,
         connectionTimeoutMs: 5_000,
         statementTimeoutMs: 5_000,
+        lockTimeoutMs: 2_000,
       },
     });
   });

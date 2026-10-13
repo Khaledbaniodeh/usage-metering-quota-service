@@ -71,6 +71,8 @@ export class AppError extends Error {
 export interface MappedError {
   readonly statusCode: number;
   readonly body: ErrorResponse;
+  /** Value of the Retry-After header, in seconds, when the client should retry. */
+  readonly retryAfterSeconds?: number;
 }
 
 export function errorResponse(code: ErrorCode, message?: string): ErrorResponse {
@@ -95,7 +97,12 @@ const CLIENT_ERROR_CODES: ReadonlyMap<number, ErrorCode> = new Map([
  */
 export function toErrorResponse(error: unknown): MappedError {
   if (error instanceof AppError) {
-    return { statusCode: error.statusCode, body: errorResponse(error.code, error.message) };
+    const { retryAfterSeconds } = errorDefinition(error.code);
+    return {
+      statusCode: error.statusCode,
+      body: errorResponse(error.code, error.message),
+      ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
+    };
   }
 
   if (error instanceof Error && "validation" in error) {

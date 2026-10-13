@@ -25,6 +25,7 @@ export function testConfig(databaseUrl: string = testDatabaseUrl()): AppConfig {
       poolMax: 5,
       connectionTimeoutMs: 2_000,
       statementTimeoutMs: 5_000,
+      lockTimeoutMs: 2_000,
     },
   };
 }
