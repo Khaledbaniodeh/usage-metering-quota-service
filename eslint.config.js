@@ -41,7 +41,13 @@ export default defineConfig(
     },
   },
   {
-    // Plain JavaScript files (only this config today) are not part of the TypeScript
+    // k6 workloads run inside k6, not Node: they read the k6 global __ENV.
+    name: "project/k6",
+    files: ["load/k6/**/*.js"],
+    languageOptions: { globals: { __ENV: "readonly" } },
+  },
+  {
+    // Plain JavaScript files (this config and the k6 workloads) are not part of the TypeScript
     // project, so type-aware rules cannot run on them.
     name: "project/javascript-files",
     files: ["**/*.js"],
