@@ -257,9 +257,11 @@ if grep -qE '"level":(50|60)' "${WORK_DIR}/api.log"; then
   exit 1
 fi
 
+# Invalid runs stay in the evidence bundle built and scanned above, but a benchmark with any k6
+# execution that failed its thresholds, timed out or wrote no summary is incomplete: both
+# profiles exit non-zero, so the job never reports success for it.
 if [[ ${#K6_FAILURES[@]} -gt 0 ]]; then
   echo "k6 runs that did not pass: ${K6_FAILURES[*]}" >&2
-  # The full profile keeps invalid runs as evidence; the smoke profile must pass every run.
-  [[ "${PROFILE}" == "smoke" ]] && exit 1
+  exit 1
 fi
 step "done"
