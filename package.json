@@ -23,6 +23,8 @@
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:client": "vitest run --project unit tests/unit/client",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "client:example": "node --import tsx client/main.ts",
     "test:coverage": "vitest run --coverage",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
   },
