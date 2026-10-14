@@ -34,7 +34,6 @@ jobs:
     env:
       PROFILE: ${{ (github.event.label.name == 'perf-full' || inputs.profile == 'full') && 'full' || 'smoke' }}
       COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      WORK_DIR: ${{ runner.temp }}/umqs-bench
     steps:
       - name: Check out the measured commit
         uses: actions/checkout@v7
@@ -51,9 +50,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Generated and masked before anything is logged; never written to the run log.
-      - name: Prepare run secrets
+      # Generated and masked before anything is logged; never written to the run log. The runner
+      # context is not available in job-level env, so the work directory is set here too.
+      - name: Prepare the work directory and run secrets
         run: |
+          echo "WORK_DIR=${RUNNER_TEMP}/umqs-bench" >> "${GITHUB_ENV}"
           password="$(openssl rand -hex 16)"
           echo "::add-mask::${password}"
           echo "BENCH_POSTGRES_PASSWORD=${password}" >> "${GITHUB_ENV}"
