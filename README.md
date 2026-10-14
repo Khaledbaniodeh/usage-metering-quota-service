@@ -7,7 +7,7 @@ it.
 
 ## Status
 
-**Implementation Phase 5: usage, decision history and pagination.**
+**Implementation Phase 6: example client and end-to-end Compose verification.**
 
 Implemented so far:
 
@@ -29,8 +29,10 @@ Implemented so far:
 - Production Docker image and a Docker Compose stack (service + PostgreSQL).
 - Unit tests, and integration tests against a real PostgreSQL database, including an
   account-isolation harness.
+- A typed example client that exercises the whole public API, run end to end against the Compose
+  stack in CI.
 
-**Not implemented yet:** the example client and load tests. They arrive in later, separately verified phases described in
+**Not implemented yet:** load tests. They arrive in later, separately verified phases described in
 [docs/architecture.md](docs/architecture.md).
 
 ## Prerequisites
@@ -476,7 +478,71 @@ When not ready, `/health/ready` returns `503` with the standard error body, for 
 
 The Docker image's health check calls `/health/ready`.
 
+## Example client
+
+`client/` holds a small TypeScript client for the public HTTP API and an example workflow that
+uses it. It is built on Node 22's native `fetch`, adds no dependency, and knows only the documented
+contract: no database access and no service internals. It is excluded from the Docker image.
+
+Run it against a running stack (for example `docker compose up --build --wait`):
+
+```bash
+npm run client:example
+```
+
+| Variable       | Default                 | Meaning                                                             |
+| -------------- | ----------------------- | ------------------------------------------------------------------- |
+| `API_BASE_URL` | `http://127.0.0.1:8080` | Service root; http or https, without credentials, query or fragment |
+
+The workflow creates a new, uniquely named account each run, so it can be repeated against the
+same stack. It prints one line per step and a summary of IDs and counts:
+
+1. Checks `/health/live` and `/health/ready`.
+2. Creates an account and three users.
+3. Sends an accepted request (5 units).
+4. Retries it with the same `requestId` and requires the identical response, byte for byte.
+5. Sends a second accepted request (7 units) for another user.
+6. Sends one unit above the user plan's per-request limit, which must be rejected with
+   `MAX_UNITS_PER_REQUEST` at `USER` level.
+7. Checks account usage (12 units) and each user's usage (5, 7, 0) for the decisions' month.
+8. Walks `GET /v1/users`, `GET /v1/usage/users` and `GET /v1/history` with `limit=1` until
+   `nextCursor` is `null`. It requires no duplicates, the expected order and values, and exactly
+   three decisions, each equal to the original response. With usage at 12, that proves the retry
+   neither counted nor recorded anything.
+
+Expectations are derived from the API's own responses (plan limits, IDs, the decisions' `month`),
+never from the local clock.
+
+**Exit codes and errors:**
+
+- `0`: the workflow passed.
+- `1`: a step failed. The message names the step and the failed call or check, for example
+  `Example client failed at step "health": GET /health/live: could not reach the service at
+http://127.0.0.1:8080 (ECONNREFUSED)`.
+- `2`: `API_BASE_URL` is invalid.
+
+Every request has a 10 second deadline, enforced with `AbortController`.
+
+**The API key never leaves memory:**
+
+- The key returned at account creation is wrapped immediately. `String`, `JSON.stringify` and
+  `util.inspect` all show `[REDACTED]`; only the `X-API-Key` request header receives the key.
+- Error messages never include request headers or response bodies.
+- Every printed line also passes through a filter that replaces anything key-shaped.
+
 ## Running the tests
+
+| Kind           | Command                    | Needs                         | What it proves                                                                    |
+| -------------- | -------------------------- | ----------------------------- | --------------------------------------------------------------------------------- |
+| Unit           | `npm run test:unit`        | Nothing                       | Pure rules, configuration, the HTTP contract with stubs, and the example client   |
+| Client unit    | `npm run test:client`      | Nothing                       | The example client's own behavior (subset of the unit tests)                      |
+| Integration    | `npm run test:integration` | PostgreSQL (`_test` database) | Repositories, transactions, concurrency, isolation, pagination, API over real SQL |
+| End to end     | `npm run test:e2e`         | A running stack               | The real client executable passes the whole workflow and prints no key            |
+| Load (Phase 7) | not implemented yet        | -                             | Throughput, latency and invariants under load                                     |
+
+`npm test` runs the unit and integration tests; `npm run check` adds formatting, lint, type-check
+and the build. The end-to-end test is a black-box check through the public API only. It
+complements the integration tests, does not replace them, and is not a load test.
 
 Integration tests need PostgreSQL and a **dedicated test database whose name ends in `_test`**,
 set through `TEST_DATABASE_URL` (in `.env` locally). With the Compose database running:
@@ -498,5 +564,24 @@ Test database safety:
 - The test database is created automatically through the server's `postgres` maintenance
   database, so the configured user needs permission to create databases (the Compose user has it).
 
-CI runs the same suite against a PostgreSQL 16 service container, and separately builds the Docker
-image, starts the Compose stack and checks health, user, logs and graceful shutdown.
+### Continuous integration
+
+GitHub Actions runs two jobs on every pull request and every push to `main`:
+
+**Quality gates and tests:** `npm ci`, formatting, lint, type-check, the unit and integration
+tests with coverage thresholds against a PostgreSQL 16 service container, and the build.
+
+**Container image and Compose stack:**
+
+1. `npm ci` with Node from `.nvmrc`, used only for the example client.
+2. Build the production image.
+3. `docker compose down --volumes`, then `docker compose up --build --wait`, so the stack starts
+   from a fresh database volume.
+4. Check both health endpoints and that the service does not run as root.
+5. Run `npm run test:e2e` against `http://127.0.0.1:8080`. The output is saved to a file and only
+   a redacted copy is printed.
+6. Fail if the API logs or the client output contain anything API-key-shaped, the database
+   password, or (API logs) an error-level entry.
+7. Stop the API and require exit code 0 and a completed graceful shutdown.
+8. On failure, print redacted Compose logs. Always run `docker compose down --volumes`. No
+   artifacts are uploaded.

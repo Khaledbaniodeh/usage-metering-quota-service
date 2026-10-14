@@ -45,7 +45,7 @@ no import-time side effects. The example client talks to the service over HTTP o
 
 ## Source layout
 
-Directories are created when a phase adds real code to them. As of Phase 5:
+Directories are created when a phase adds real code to them. As of Phase 6:
 
 ```
 src/
@@ -70,11 +70,14 @@ src/
   shared/              cross-cutting pieces with one clear owner each: clock, logger, error
                        catalogue, HTTP error contract, display-name schema, UTC months,
                        strict query parameters, opaque cursors
+client/                example client: public HTTP API only, never imports src/ (excluded from
+                       the Docker image)
 tests/
-  unit/                no database; mirrors src/
+  unit/                no database; mirrors src/ and client/
   integration/         real PostgreSQL; mirrors src/
+  e2e/                 black-box run of the example client against a running stack
   helpers/             test database lifecycle and guard, application builder, account-isolation
-                       harness, fixtures, loggers
+                       harness, fixtures, loggers, fake fetch for the client tests
 ```
 
 Feature code (plans, users, usage, consumption) lives in `src/modules/<feature>/`, each module
@@ -366,6 +369,67 @@ extra row to know whether a next page exists:
   - Add `(account_id, user_id, month, seq)` in a new migration only if p95 exceeds 50 ms or rows
     removed by the filter exceed 100× the limit, **and** an A/B consume run keeps the consume p95
     regression under 5%.
+
+## Example client and end-to-end verification
+
+The example client (`client/`) is an external caller written as one: it uses only the public HTTP
+API. It imports nothing from `src/`, so its response types are written from the documented
+contract, and a contract change shows up as a failed end-to-end check, not a silent recompile.
+
+| Module          | Responsibility                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| `api-client.ts` | Typed calls on native `fetch`: base-URL validation, query building, deadline, status and JSON checks |
+| `api-key.ts`    | `ApiKey` wrapper that redacts itself everywhere except the request header; `redactApiKeys()`         |
+| `api-types.ts`  | Response shapes of the public contract                                                               |
+| `pagination.ts` | Walks a cursor list to `nextCursor: null`, rejecting duplicates, repeated cursors and endless lists  |
+| `workflow.ts`   | The example scenario and its domain assertions                                                       |
+| `cli.ts`        | Configuration (`API_BASE_URL`), output, exit codes; injectable for tests                             |
+| `main.ts`       | Process entry (`npm run client:example`)                                                             |
+
+**Deliberately small.**
+
+- No SDK layer, retries or interactive mode. Interactive subcommands remain a deferred option.
+- No runtime schema validation: the client checks status, content type and that the body is a JSON
+  object, and the workflow asserts every value it relies on.
+- No dependency beyond the existing toolchain (`tsx` runs the TypeScript directly).
+
+**Failure handling.**
+
+- One `ApiError` with a kind: `status`, `timeout`, `network` or `response`.
+- Its message holds the method, path and query, the status and the service's error code and
+  message.
+- Request headers, response bodies and the original network error are never included; only a
+  network error's code (for example `ECONNREFUSED`) is kept.
+- Each request has an `AbortController` deadline covering the response and its body.
+
+**API key handling.** The key exists only in memory, inside `ApiKey`, from the moment the
+creation response is parsed. Every printed line is passed through `redactApiKeys()` as a last
+line of defense.
+
+**Testing layers.**
+
+- **Client unit tests** (`tests/unit/client/`, part of `npm test`) inject a fake `fetch` and test
+  the client's own behavior, not the service's.
+- **The end-to-end test** (`tests/e2e/`, `npm run test:e2e`, its own `vitest.e2e.config.ts` so
+  `npm test` never needs a running service) spawns the real executable against a running stack.
+  It requires exit code 0, every step and the summary, and fails on anything key-shaped in the
+  output.
+- **Load testing** (Phase 7) is separate and measures throughput, latency and invariants under
+  load.
+
+**CI lifecycle** (job "Container image and Compose stack"):
+
+1. `npm ci` with Node from `.nvmrc`.
+2. Build the production image.
+3. `docker compose down --volumes`, then `up --build --wait` from a fresh database volume.
+4. Check both health endpoints and the non-root UID.
+5. Run `npm run test:e2e` against `http://127.0.0.1:8080`. Its output goes to a file and only a
+   redacted copy is printed.
+6. Scan the API logs and the client output for API-key-shaped values, the database password and
+   error-level entries.
+7. Stop the API and require exit code 0 and `shutdown complete`.
+8. On failure, print redacted Compose logs. Always run `docker compose down --volumes`. No
+   artifacts are uploaded.
 
 ## Startup, health and shutdown
 
