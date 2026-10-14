@@ -44,7 +44,7 @@ export const options = {
     warmupRate: RATE,
     warmupSeconds: WARMUP_S,
     stages: STAGES,
-    preAllocatedVUs: Math.max(5, RATE / 2),
+    preAllocatedVUs: Math.max(5, Math.ceil(RATE / 2)),
     maxVUs: Math.max(20, RATE * 2),
   }),
   thresholds: measuredThresholds(STAGES.length, { kind: "read" }),

@@ -250,7 +250,10 @@ function race(data, i) {
       jsonParams(account.apiKey, { endpoint: "consume", kind: "new" }, WORKLOAD.allowed),
     ]),
   );
-  const decisions = responses.map((response, index) => record(response, bodies.at(index), "race"));
+  const decisions = responses.map((response, index) =>
+    // eslint-disable-next-line security/detect-object-injection -- index of the batch response, same order as bodies
+    record(response, bodies[index], "race"),
+  );
   const okBodies = responses.filter((r) => r.status === 200).map((r) => r.body);
   const conflicts = responses.filter((r) => r.status === 409).length;
   if (okBodies.length > 0) {

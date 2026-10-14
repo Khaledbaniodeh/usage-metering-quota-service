@@ -9,7 +9,9 @@ import {
 
 /**
  * The seed as an ordered list of parameterized SQL statements. Every variable value travels as a
- * bound parameter; the SQL text is constant. Identifiers are md5-derived UUIDs of fixed labels, so
+ * bound parameter; the SQL text is constant. Parameters that appear only in a select list are cast
+ * explicitly: PostgreSQL would otherwise resolve them as text, which a bytea or timestamptz column
+ * refuses. Identifiers are md5-derived UUIDs of fixed labels, so
  * every run produces identical rows (apart from the API-key digests, which are secrets).
  *
  * Decisions are inserted per tenant and month in `k` order, so `seq` follows time, and the
@@ -48,14 +50,14 @@ export const LABELS = {
 const SETUP_SQL = {
   accounts: `
     INSERT INTO accounts (id, name, api_key_hash, plan_id, created_at, updated_at)
-    SELECT ${id("$1")}, $2, $3, p.id, $7, $7 FROM plans p WHERE p.code = 'starter'
+    SELECT ${id("$1")}, $2::text, $3::bytea, p.id, $7::timestamptz, $7::timestamptz FROM plans p WHERE p.code = 'starter'
     UNION ALL
-    SELECT ${id("$4")}, $5, $6, p.id, $7, $7 FROM plans p WHERE p.code = 'starter'`,
+    SELECT ${id("$4")}, $5::text, $6::bytea, p.id, $7::timestamptz, $7::timestamptz FROM plans p WHERE p.code = 'starter'`,
   plans: `
     INSERT INTO plans (id, code, owner_account_id, scope, name, monthly_allowance,
                        max_units_per_request, created_at, updated_at)
     SELECT ${id("t.plan_label")}, NULL, ${id("t.account_label")}, t.scope::quota_level, t.name,
-           t.allowance, t.max_units, $1, $1
+           t.allowance, t.max_units, $1::timestamptz, $1::timestamptz
     FROM (VALUES
       ($2, $3, 'ACCOUNT', 'Benchmark account', $6::int, $7::int),
       ($2, $4, 'USER', 'Benchmark user', $8::int, $9::int),
@@ -67,7 +69,7 @@ const SETUP_SQL = {
     WHERE id = ${id("$1")}`,
   users: `
     INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)
-    SELECT ${id("u.label")}, ${id("u.account_label")}, u.name, ${id("u.plan_label")}, $1, $1
+    SELECT ${id("u.label")}, ${id("u.account_label")}, u.name, ${id("u.plan_label")}, $1::timestamptz, $1::timestamptz
     FROM (
       SELECT 0 AS ord, $2::text AS label, $3::text AS account_label, 'Heavy user' AS name,
              $4::text AS plan_label

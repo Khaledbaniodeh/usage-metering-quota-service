@@ -52,7 +52,8 @@ async function main(): Promise<void> {
 
   const metadata = await withBenchClient(database, async (client) => {
     const existing = await client.query<{ rows: number }>(
-      "SELECT (SELECT count(*) FROM accounts) + (SELECT count(*) FROM consume_decisions) AS rows",
+      // Cast to int: the load scripts use plain pg clients, which return bigint counts as strings.
+      "SELECT ((SELECT count(*) FROM accounts) + (SELECT count(*) FROM consume_decisions))::int AS rows",
     );
     if ((existing.rows[0]?.rows ?? -1) !== 0) {
       throw new Refusal("the benchmark database is not fresh (accounts or decisions exist)");
