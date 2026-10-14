@@ -1,0 +1,111 @@
+name: Performance
+
+# Benchmarks never run on ordinary pushes. They run when a pull request gets the label
+# "perf-smoke" (scaled pipeline validation) or "perf-full" (the measured protocol), or by manual
+# dispatch once this workflow is on main. See docs/performance.md and load/scripts/benchmark.sh.
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Benchmark profile
+        type: choice
+        options: [smoke, full]
+        default: smoke
+
+permissions:
+  contents: read
+
+concurrency:
+  # One benchmark per pull request (or ref) at a time; a running measurement is never cancelled.
+  group: performance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: Benchmark (${{ github.event.label.name || inputs.profile }})
+    if: >-
+      (github.event_name == 'pull_request' &&
+        (github.event.label.name == 'perf-smoke' || github.event.label.name == 'perf-full')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ (github.event.label.name == 'perf-full' || inputs.profile == 'full') && 300 || 45 }}
+    env:
+      PROFILE: ${{ (github.event.label.name == 'perf-full' || inputs.profile == 'full') && 'full' || 'smoke' }}
+      COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      WORK_DIR: ${{ runner.temp }}/umqs-bench
+    steps:
+      - name: Check out the measured commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.COMMIT_SHA }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Generated and masked before anything is logged; never written to the run log.
+      - name: Prepare run secrets
+        run: |
+          password="$(openssl rand -hex 16)"
+          echo "::add-mask::${password}"
+          echo "BENCH_POSTGRES_PASSWORD=${password}" >> "${GITHUB_ENV}"
+
+      - name: Record the runner
+        run: |
+          echo "profile ${PROFILE}, commit ${COMMIT_SHA}"
+          nproc
+          grep -m1 'model name' /proc/cpuinfo
+          free -b
+          df -B1 /
+          docker version --format 'docker {{.Server.Version}}'
+
+      # Live output is redacted; the raw copy stays in WORK_DIR for the secret scan.
+      - name: Run the benchmark
+        id: bench
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "${WORK_DIR}"
+          bash load/scripts/benchmark.sh 2>&1 \
+            | tee "${WORK_DIR}/benchmark.log" \
+            | sed -E 's/umqs_[A-Za-z0-9_-]+/umqs_[REDACTED]/g; s#(postgres(ql)?://[^:/@ ]+):[^@ ]+@#\1:[REDACTED]@#g'
+
+      - name: Scan the run log and evidence for secrets
+        id: scan
+        if: success() || failure()
+        shell: bash
+        run: |
+          paths=("${WORK_DIR}/benchmark.log")
+          [[ -d "${WORK_DIR}/evidence" ]] && paths+=("${WORK_DIR}/evidence")
+          # The literal database password is scanned for as well as every key and URL pattern.
+          export BENCH_DATABASE_URL="postgres://usage_metering:${BENCH_POSTGRES_PASSWORD}@127.0.0.1:15432/usage_metering_bench"
+          node --import tsx load/scripts/scan-secrets.ts "${paths[@]}"
+          echo "passed=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Show the cleanup result
+        if: always()
+        run: cat "${WORK_DIR}/cleanup.txt" 2>/dev/null || echo "no cleanup record"
+
+      - name: Upload the redacted evidence bundle
+        if: always() && steps.scan.outputs.passed == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-evidence-${{ env.PROFILE }}-${{ env.COMMIT_SHA }}
+          path: ${{ runner.temp }}/umqs-bench/evidence/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Tear down the benchmark project (safety net)
+        if: always()
+        run: |
+          docker compose -p umqs-bench -f compose.yaml -f load/compose.benchmark.yaml down --volumes --remove-orphans || true
+          echo "remaining benchmark containers: $(docker ps -aq --filter label=com.docker.compose.project=umqs-bench | wc -l)"
+          echo "remaining benchmark volumes: $(docker volume ls -q --filter label=com.docker.compose.project=umqs-bench | wc -l)"

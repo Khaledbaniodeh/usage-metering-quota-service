@@ -5,7 +5,8 @@
  *   [BENCH_DATABASE_URL=…] [API_KEY_FILE=…] node --import tsx load/scripts/report.ts
  *
  * Validates every k6 summary against its schema, then writes to EVIDENCE_DIR:
- *   summary.json        environment, seed counts, footprint, disk projection, EXPLAIN summaries,
+ *   summary.json        environment, seed counts, footprint, disk projection and samples, Docker
+ *                       usage, EXPLAIN summaries,
  *                       every k6 run (each value kept, none dropped) and every invariant result
  *   environment.json    the environment record
  *   explain-<label>.txt readable EXPLAIN plans
@@ -89,6 +90,11 @@ function main(): void {
         ];
       }),
   );
+  const pgStatStatements = Object.fromEntries(
+    names
+      .filter((n) => /^pg-stat-statements-.*.json$/.test(n))
+      .map((n) => [n.replace(/^pg-stat-statements-|.json$/g, ""), read(n)]),
+  );
   const footprints = Object.fromEntries(
     names
       .filter((n) => /^footprint-.*\.json$/.test(n))
@@ -111,9 +117,12 @@ function main(): void {
     seed: optional("seed.json"),
     footprints,
     diskProjection: optional("disk-projection.json"),
+    diskSamples: optional("disk-samples.json"),
+    dockerUsage: optional("docker-usage.json"),
     explains,
     k6Runs: k6,
     invariants,
+    pgStatStatements,
     decision,
   };
   const table = [
