@@ -18,6 +18,7 @@ coverage/
 
 # Not needed to build or run the service
 docs/
+client/
 load/
 tests/
 *.md
