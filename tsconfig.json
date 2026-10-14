@@ -23,5 +23,12 @@
 
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "client/**/*.ts", "scripts/**/*.ts", "*.config.ts"]
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "client/**/*.ts",
+    "load/**/*.ts",
+    "scripts/**/*.ts",
+    "*.config.ts"
+  ]
 }
