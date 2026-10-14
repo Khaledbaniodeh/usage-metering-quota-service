@@ -503,22 +503,38 @@ same stack. It prints one line per step and a summary of IDs and counts:
 4. Retries it with the same `requestId` and requires the identical response, byte for byte.
 5. Sends a second accepted request (7 units) for another user.
 6. Sends one unit above the user plan's per-request limit, which must be rejected with
-   `MAX_UNITS_PER_REQUEST` at `USER` level.
-7. Checks account usage (12 units) and each user's usage (5, 7, 0) for the decisions' month.
+   `MAX_UNITS_PER_REQUEST` at `USER` level, with usage unchanged.
+
+   Every decision must echo the `requestId`, `userId` and `units` that were sent.
+
+7. Checks account usage (12 units) and each user's usage (5, 7, 0).
+   - Account usage is read without `month`, which reports the current month: it must be the
+     decisions' month, in the current-month form.
+   - Every usage response must carry `monthlyAllowance`, `maxUnitsPerRequest` and `remaining`
+     together or not at all. When present, each must match the plan.
 8. Walks `GET /v1/users`, `GET /v1/usage/users` and `GET /v1/history` with `limit=1` until
-   `nextCursor` is `null`. It requires no duplicates, the expected order and values, and exactly
-   three decisions, each equal to the original response. With usage at 12, that proves the retry
-   neither counted nor recorded anything.
+   `nextCursor` is `null`.
+   - **All lists:** no duplicates, and the expected order and values.
+   - **`/v1/usage/users`:** every page has the same `currentMonth`, matching the other usage
+     responses. On current-month pages, each user's plan ID, plan name, limits and `remaining`
+     are checked.
+   - **`/v1/history`:** exactly three decisions, each equal to its original response.
+   - With usage at 12, this proves the retry neither counted nor recorded anything.
 
 Expectations are derived from the API's own responses (plan limits, IDs, the decisions' `month`),
-never from the local clock.
+never from the local clock. If the UTC month changes during a run, the usage forms legitimately
+change; the client detects this through the API and asks for a rerun instead of reporting a
+defect.
 
 **Exit codes and errors:**
 
 - `0`: the workflow passed.
-- `1`: a step failed. The message names the step and the failed call or check, for example
-  `Example client failed at step "health": GET /health/live: could not reach the service at
-http://127.0.0.1:8080 (ECONNREFUSED)`.
+- `1`: a step failed. The message names the step and the failed call or check, for example:
+
+  ```text
+  Example client failed at step "accepted request": POST /v1/consume: expected HTTP 200, got 409 IDEMPOTENCY_CONFLICT
+  ```
+
 - `2`: `API_BASE_URL` is invalid.
 
 Every request has a 10 second deadline, enforced with `AbortController`.
@@ -527,7 +543,9 @@ Every request has a 10 second deadline, enforced with `AbortController`.
 
 - The key returned at account creation is wrapped immediately. `String`, `JSON.stringify` and
   `util.inspect` all show `[REDACTED]`; only the `X-API-Key` request header receives the key.
-- Error messages never include request headers or response bodies.
+- A failed call is described only by the endpoint (method, documented path and its own query),
+  the HTTP status and the service's error code. Never included: the configured base URL or path
+  prefix, request headers, the service's error message, or any other response content.
 - Every printed line also passes through a filter that replaces anything key-shaped.
 
 ## Running the tests

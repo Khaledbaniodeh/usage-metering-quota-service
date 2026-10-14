@@ -34,20 +34,22 @@ export interface ApiClientOptions {
 export type ApiErrorKind = "status" | "timeout" | "network" | "response";
 
 /**
- * One failed API call. The message names the call (method, path and query) and what went wrong;
- * it never contains request headers, the API key or a response body.
+ * One failed API call. The message names the endpoint call (method, documented path and the call's
+ * own query) and what went wrong, with at most the service's error code. It never contains the
+ * configured base URL, request headers, the API key, the service's error message or any other
+ * response-body value.
  */
 export class ApiError extends Error {
   override readonly name = "ApiError";
 
   constructor(
     readonly kind: ApiErrorKind,
-    /** `METHOD /path?query` of the failed call. */
+    /** `METHOD /v1/endpoint?query` of the failed call, without the base URL. */
     readonly call: string,
     detail: string,
     /** HTTP status, when a response arrived. */
     readonly status?: number,
-    /** The `error.code` of the service's error body, when there was one. */
+    /** The service's `error.code`, when the body was a standard error with a well-formed code. */
     readonly code?: string,
   ) {
     super(`${call}: ${detail}`);
@@ -121,15 +123,30 @@ export function parseBaseUrl(raw: string): URL {
   return url;
 }
 
+function searchParams(query: QueryValues): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(query)) {
+    if (value !== undefined) {
+      params.set(name, String(value));
+    }
+  }
+  return params;
+}
+
 /** `path` (e.g. "/v1/users") below `baseUrl`, with the defined query values. */
 export function buildUrl(baseUrl: URL, path: string, query: QueryValues = {}): URL {
   const url = new URL(path.replace(/^\/+/, ""), baseUrl);
-  for (const [name, value] of Object.entries(query)) {
-    if (value !== undefined) {
-      url.searchParams.set(name, String(value));
-    }
-  }
+  url.search = searchParams(query).toString();
   return url;
+}
+
+/**
+ * The diagnostic name of a call: method, documented endpoint path and the call's own query. It is
+ * built without the base URL, so a configured host or path prefix never reaches an error message.
+ */
+export function callLabel(method: string, path: string, query: QueryValues = {}): string {
+  const search = searchParams(query).toString();
+  return `${method} ${path}${search === "" ? "" : `?${search}`}`;
 }
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
@@ -145,6 +162,14 @@ function isErrorBody(value: unknown): value is ErrorBody {
   );
 }
 
+/** Catalogue error codes and Node network error codes are upper-case words; nothing else is echoed. */
+const CODE = /^[A-Z][A-Z0-9_]{0,63}$/;
+
+/** The service's error code from a standard error body, if well formed. Never its message. */
+function serviceErrorCode(body: unknown): string | undefined {
+  return isErrorBody(body) && CODE.test(body.error.code) ? body.error.code : undefined;
+}
+
 function parseJson(text: string): unknown {
   try {
     return JSON.parse(text) as unknown;
@@ -157,7 +182,7 @@ function parseJson(text: string): unknown {
 function networkHint(error: unknown): string {
   const cause = error instanceof Error ? error.cause : undefined;
   const code = isJsonObject(cause) && typeof cause.code === "string" ? cause.code : undefined;
-  return code === undefined ? "" : ` (${code})`;
+  return code === undefined || !CODE.test(code) ? "" : ` (${code})`;
 }
 
 export function createApiClient(options: ApiClientOptions): PublicApi {
@@ -168,7 +193,8 @@ export function createApiClient(options: ApiClientOptions): PublicApi {
   /** Sends one call; returns the JSON object body and its exact text, or throws ApiError. */
   async function send(call: Call): Promise<{ data: Record<string, unknown>; text: string }> {
     const url = buildUrl(baseUrl, call.path, call.query);
-    const label = `${call.method} ${url.pathname}${url.search}`;
+    // The request goes to the full URL (prefix included); diagnostics name only the endpoint.
+    const label = callLabel(call.method, call.path, call.query);
     const headers: Record<string, string> = { accept: "application/json" };
     if (call.body !== undefined) {
       headers["content-type"] = "application/json";
@@ -207,13 +233,15 @@ export function createApiClient(options: ApiClientOptions): PublicApi {
 
     const data = parseJson(text);
     if (response.status !== call.expectedStatus) {
-      const problem = isErrorBody(data) ? ` ${data.error.code}: ${data.error.message}` : "";
+      const code = serviceErrorCode(data);
+      const got =
+        code === undefined ? String(response.status) : `${String(response.status)} ${code}`;
       throw new ApiError(
         "status",
         label,
-        `expected HTTP ${String(call.expectedStatus)}, got ${String(response.status)}${problem}`,
+        `expected HTTP ${String(call.expectedStatus)}, got ${got}`,
         response.status,
-        isErrorBody(data) ? data.error.code : undefined,
+        code,
       );
     }
     const contentType = response.headers.get("content-type") ?? "";

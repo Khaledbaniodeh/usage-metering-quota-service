@@ -167,7 +167,7 @@ describe("account creation", () => {
 });
 
 describe("expected status and error rendering", () => {
-  it("renders the service's error code and message", async () => {
+  it("renders the service's error code, never its message", async () => {
     const { fetch } = fakeFetch(() =>
       json(409, {
         error: {
@@ -181,9 +181,23 @@ describe("expected status and error rendering", () => {
     const error = await apiErrorOf(api.consume({ userId: USER_ID, units: 1, requestId: "r-1" }));
 
     expect(error).toMatchObject({ kind: "status", status: 409, code: "IDEMPOTENCY_CONFLICT" });
-    expect(error.message).toBe(
-      "POST /v1/consume: expected HTTP 200, got 409 IDEMPOTENCY_CONFLICT: requestId was already used with a different payload",
-    );
+    expect(error.message).toBe("POST /v1/consume: expected HTTP 200, got 409 IDEMPOTENCY_CONFLICT");
+    for (const rendering of renderings(error)) {
+      expect(rendering).not.toContain("already used");
+    }
+  });
+
+  it.each([
+    ["free text", "connection to 10.0.0.7 refused"],
+    ["lower case", "not_found"],
+    ["too long", `E${"X".repeat(64)}`],
+  ])("does not echo an error code that is %s", async (_label, code) => {
+    const { fetch } = fakeFetch(() => json(500, { error: { code, message: "detail" } }));
+
+    const error = await apiErrorOf(client(fetch).ready());
+
+    expect(error).toMatchObject({ kind: "status", status: 500, code: undefined });
+    expect(error.message).toBe("GET /health/ready: expected HTTP 200, got 500");
   });
 
   it("rejects a success status other than the expected one", async () => {
@@ -237,6 +251,52 @@ describe("malformed responses", () => {
 
     expect(error.kind).toBe("response");
     expect(error.message).toBe("GET /health/live: the response body is not a JSON object");
+  });
+});
+
+describe("a base URL with a path prefix", () => {
+  const PREFIX = "private-token-8c1f2e";
+  const prefixed = (fetch: FetchFunction) =>
+    createApiClient({ baseUrl: `https://example.test/${PREFIX}/`, fetch, timeoutMs: 20 });
+
+  it("still sends every request below the prefix", async () => {
+    const { fetch, requests } = fakeFetch(() => json(200, { users: [], nextCursor: null }));
+
+    await prefixed(fetch).forAccount(new ApiKey(sampleApiKey())).listUsers({ limit: 1 });
+
+    expect(requests[0]?.url.href).toBe(`https://example.test/${PREFIX}/v1/users?limit=1`);
+  });
+
+  it("names only the endpoint and its query in a diagnostic", async () => {
+    const { fetch } = fakeFetch(() =>
+      json(500, { error: { code: "INTERNAL_ERROR", message: "Internal server error" } }),
+    );
+
+    const error = await apiErrorOf(
+      prefixed(fetch).forAccount(new ApiKey(sampleApiKey())).listUsers({ limit: 1 }),
+    );
+
+    expect(error.call).toBe("GET /v1/users?limit=1");
+    expect(error.message).toBe("GET /v1/users?limit=1: expected HTTP 200, got 500 INTERNAL_ERROR");
+  });
+
+  const failures: [string, (signal: AbortSignal) => Response | Promise<Response>][] = [
+    ["a status error", () => json(404, { error: { code: "NOT_FOUND", message: "Not found" } })],
+    ["a network failure", () => Promise.reject(new TypeError("fetch failed"))],
+    ["a timeout", (signal) => untilAborted(signal)],
+    ["a malformed response", () => json(200, undefined, "[]")],
+  ];
+
+  it.each(failures)("keeps the prefix out of %s", async (_label, respond) => {
+    const { fetch, requests } = fakeFetch((_request, signal) => respond(signal));
+
+    const error = await apiErrorOf(prefixed(fetch).live());
+
+    expect(requests[0]?.url.pathname).toBe(`/${PREFIX}/health/live`);
+    expect(error.call).toBe("GET /health/live");
+    for (const rendering of [...renderings(error), JSON.stringify(error)]) {
+      expect(rendering).not.toContain(PREFIX);
+    }
   });
 });
 

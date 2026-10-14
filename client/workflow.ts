@@ -1,6 +1,16 @@
-import { isDeepStrictEqual } from "node:util";
 import type { ConsumeResult, PublicApi } from "./api-client.js";
-import type { Decision, MonthlyUsage, Plan, User } from "./api-types.js";
+import type { User } from "./api-types.js";
+import {
+  check,
+  checkDecision,
+  checkEqual,
+  checkForm,
+  CheckFailed,
+  checkListedUsage,
+  checkMonthlyUsage,
+  FormMismatch,
+  type UsageForm,
+} from "./checks.js";
 import { collectAllPages } from "./pagination.js";
 
 /**
@@ -46,27 +56,6 @@ export class WorkflowFailure extends Error {
   }
 }
 
-class CheckFailed extends Error {}
-
-function check(condition: boolean, message: string): asserts condition {
-  if (!condition) {
-    throw new CheckFailed(message);
-  }
-}
-
-/** A value for a failure message, shortened so messages stay concise. */
-function brief(value: unknown): string {
-  const text = value === undefined ? "undefined" : JSON.stringify(value);
-  return text.length > 200 ? `${text.slice(0, 200)}…` : text;
-}
-
-function checkEqual(actual: unknown, expected: unknown, what: string): void {
-  check(
-    isDeepStrictEqual(actual, expected),
-    `${what}: expected ${brief(expected)}, got ${brief(actual)}`,
-  );
-}
-
 /** Runs one named step, turning any failure into a WorkflowFailure that names the step. */
 async function step<T>(name: string, log: (line: string) => void, run: () => Promise<[T, string]>) {
   let outcome: [T, string];
@@ -88,36 +77,10 @@ export function replayMismatch(original: ConsumeResult, replay: ConsumeResult): 
   return `the retry returned a different response (${String(replay.rawBody.length)} bytes, original ${String(original.rawBody.length)} bytes)`;
 }
 
-/** Checks a usage response against the expected count and, for the current month, the plan. */
-function checkUsage(usage: MonthlyUsage, month: string, used: number, plan: Plan, what: string) {
-  checkEqual(usage.month, month, `${what} month`);
-  checkEqual(usage.used, used, `${what} used`);
-  if (usage.monthlyAllowance !== undefined) {
-    checkEqual(usage.monthlyAllowance, plan.monthlyAllowance, `${what} monthlyAllowance`);
-    checkEqual(usage.maxUnitsPerRequest, plan.maxUnitsPerRequest, `${what} maxUnitsPerRequest`);
-    checkEqual(usage.remaining, Math.max(0, plan.monthlyAllowance - used), `${what} remaining`);
-  }
-}
-
-function checkAccepted(
-  decision: Decision,
-  userId: string,
-  units: number,
-  used: number,
-  total: number,
-) {
-  checkEqual(
-    [decision.accepted, decision.blockingRule, decision.blockingLevel],
-    [true, null, null],
-    `decision ${decision.requestId} outcome`,
+function monthChanged(month: string): CheckFailed {
+  return new CheckFailed(
+    `the UTC month changed during the run (the decisions are in ${month}); run the example again`,
   );
-  checkEqual(
-    [decision.userId, decision.units],
-    [userId, units],
-    `decision ${decision.requestId} request`,
-  );
-  checkEqual(decision.user.used, used, `decision ${decision.requestId} user used`);
-  checkEqual(decision.account.used, total, `decision ${decision.requestId} account used`);
 }
 
 export async function runExampleWorkflow(
@@ -159,64 +122,69 @@ export async function runExampleWorkflow(
     "the default plans allow the example's accepted requests",
   );
 
+  const firstRequest = { userId: first.id, units: FIRST_UNITS, requestId: `${runId}-accepted-1` };
   const accepted = await step("accepted request", log, async () => {
-    const result = await account.consume({
-      userId: first.id,
-      units: FIRST_UNITS,
-      requestId: `${runId}-accepted-1`,
+    const result = await account.consume(firstRequest);
+    checkDecision(result.decision, {
+      ...firstRequest,
+      accepted: true,
+      blockingRule: null,
+      blockingLevel: null,
+      userUsed: FIRST_UNITS,
+      accountUsed: FIRST_UNITS,
     });
-    checkAccepted(result.decision, first.id, FIRST_UNITS, FIRST_UNITS, FIRST_UNITS);
     return [result, `${String(FIRST_UNITS)} units accepted for user 1`];
   });
 
   await step("idempotent retry", log, async () => {
-    const replay = await account.consume({
-      userId: first.id,
-      units: FIRST_UNITS,
-      requestId: `${runId}-accepted-1`,
-    });
+    const replay = await account.consume(firstRequest);
     const mismatch = replayMismatch(accepted, replay);
     check(mismatch === undefined, mismatch ?? "");
     return [undefined, `identical response (${String(replay.rawBody.length)} bytes)`];
   });
 
   const unitsUsed = FIRST_UNITS + SECOND_UNITS;
+  const secondRequest = {
+    userId: second.id,
+    units: SECOND_UNITS,
+    requestId: `${runId}-accepted-2`,
+  };
   const secondAccepted = await step("second accepted request", log, async () => {
-    const result = await account.consume({
-      userId: second.id,
-      units: SECOND_UNITS,
-      requestId: `${runId}-accepted-2`,
+    const result = await account.consume(secondRequest);
+    checkDecision(result.decision, {
+      ...secondRequest,
+      accepted: true,
+      blockingRule: null,
+      blockingLevel: null,
+      userUsed: SECOND_UNITS,
+      accountUsed: unitsUsed,
     });
-    checkAccepted(result.decision, second.id, SECOND_UNITS, SECOND_UNITS, unitsUsed);
     return [result, `${String(SECOND_UNITS)} units accepted for user 2`];
   });
 
   // The user's per-request limit is the first rule checked, so one unit more is always blocked there.
-  const rejectedUnits = userPlan.maxUnitsPerRequest + 1;
+  const rejectedRequest = {
+    userId: first.id,
+    units: userPlan.maxUnitsPerRequest + 1,
+    requestId: `${runId}-rejected-1`,
+  };
   const rejected = await step("quota rejection", log, async () => {
-    const result = await account.consume({
-      userId: first.id,
-      units: rejectedUnits,
-      requestId: `${runId}-rejected-1`,
+    const result = await account.consume(rejectedRequest);
+    checkDecision(result.decision, {
+      ...rejectedRequest,
+      accepted: false,
+      blockingRule: "MAX_UNITS_PER_REQUEST",
+      blockingLevel: "USER",
+      userUsed: FIRST_UNITS,
+      accountUsed: unitsUsed,
     });
-    const { decision } = result;
-    checkEqual(
-      [decision.accepted, decision.blockingRule, decision.blockingLevel],
-      [false, "MAX_UNITS_PER_REQUEST", "USER"],
-      "rejection outcome",
-    );
-    checkEqual(decision.user.used, FIRST_UNITS, "user used after the rejection");
-    checkEqual(decision.account.used, unitsUsed, "account used after the rejection");
-    return [result, `${String(rejectedUnits)} units blocked by USER MAX_UNITS_PER_REQUEST`];
+    return [result, `${String(rejectedRequest.units)} units blocked by USER MAX_UNITS_PER_REQUEST`];
   });
 
   const decisions = [accepted.decision, secondAccepted.decision, rejected.decision];
   const month = accepted.decision.month;
   if (decisions.some((decision) => decision.month !== month)) {
-    throw new WorkflowFailure(
-      "quota rejection",
-      "the UTC month changed during the run; run the example again",
-    );
+    throw new WorkflowFailure("quota rejection", monthChanged(month).message);
   }
   // Accepted units per user; the rejected request counted nothing.
   const expectedUsed = new Map([
@@ -225,18 +193,58 @@ export async function runExampleWorkflow(
   ]);
   const usedBy = (user: User) => expectedUsed.get(user.id) ?? 0;
 
-  await step("account usage", log, async () => {
-    checkUsage(await account.accountUsage(month), month, unitsUsed, accountPlan, "account usage");
-    return [undefined, `${String(unitsUsed)} units used in ${month} (accepted requests only)`];
-  });
+  /**
+   * A usage response in the other month form is a defect, unless the UTC month changed since the
+   * decisions: then the run cannot be judged and is reported as such.
+   */
+  const unlessMonthChanged =
+    <T>(run: () => Promise<[T, string]>) =>
+    async (): Promise<[T, string]> => {
+      try {
+        return await run();
+      } catch (error) {
+        if (error instanceof FormMismatch && (await account.accountUsage()).month !== month) {
+          throw monthChanged(month);
+        }
+        throw error;
+      }
+    };
 
-  await step("user usage", log, async () => {
-    for (const [index, user] of users.entries()) {
-      const usage = await account.userUsage(user.id, month);
-      checkUsage(usage, month, usedBy(user), user.plan, `user ${String(index + 1)} usage`);
-    }
-    return [undefined, users.map(usedBy).join(" + ") + " units"];
-  });
+  // Without ?month= the service reports its current month, which must use the current-month form
+  // and be the decisions' month. Every later usage response must use this same form.
+  const form: UsageForm = "current";
+  await step(
+    "account usage",
+    log,
+    unlessMonthChanged(async () => {
+      const usage = await account.accountUsage();
+      if (usage.month > month) {
+        throw monthChanged(month);
+      }
+      checkMonthlyUsage(
+        usage,
+        { month, used: unitsUsed, plan: accountPlan, form },
+        "account usage",
+      );
+      return [undefined, `${String(unitsUsed)} units used in ${month} (accepted requests only)`];
+    }),
+  );
+
+  await step(
+    "user usage",
+    log,
+    unlessMonthChanged(async () => {
+      for (const [index, user] of users.entries()) {
+        const usage = await account.userUsage(user.id, month);
+        checkMonthlyUsage(
+          usage,
+          { month, used: usedBy(user), plan: user.plan, form },
+          `user ${String(index + 1)} usage`,
+        );
+      }
+      return [undefined, users.map(usedBy).join(" + ") + " units"];
+    }),
+  );
 
   const userPages = await step("walk GET /v1/users", log, async () => {
     const traversal = await collectAllPages(
@@ -259,27 +267,44 @@ export async function runExampleWorkflow(
     ];
   });
 
-  const usagePages = await step("walk GET /v1/usage/users", log, async () => {
-    const traversal = await collectAllPages(
-      async (cursor) => {
-        const page = await account.listUserUsage(
-          cursor === undefined ? { month, limit: PAGE_LIMIT } : { limit: PAGE_LIMIT, cursor },
-        );
-        checkEqual(page.month, month, "usage page month");
-        return { items: page.users, nextCursor: page.nextCursor };
-      },
-      (usage) => usage.userId,
-    );
-    checkEqual(
-      traversal.items.map((usage) => [usage.userId, usage.used]),
-      users.map((user) => [user.id, usedBy(user)]).reverse(),
-      "per-user usage, newest user first",
-    );
-    return [
-      traversal.pages,
-      `${String(traversal.items.length)} users in ${String(traversal.pages)} pages`,
-    ];
-  });
+  const usagePages = await step(
+    "walk GET /v1/usage/users",
+    log,
+    unlessMonthChanged(async () => {
+      let page = 0;
+      const traversal = await collectAllPages(
+        async (cursor) => {
+          page += 1;
+          const result = await account.listUserUsage(
+            cursor === undefined ? { month, limit: PAGE_LIMIT } : { limit: PAGE_LIMIT, cursor },
+          );
+          const what = `usage page ${String(page)}`;
+          checkEqual(result.month, month, `${what} month`);
+          // The same flag on every page, agreeing with the form of the other usage responses.
+          checkForm(result.currentMonth ? "current" : "past", form, `${what} currentMonth`);
+          return { items: result.users, nextCursor: result.nextCursor };
+        },
+        (usage) => usage.userId,
+      );
+      const newestFirst = [...users].reverse();
+      checkEqual(
+        traversal.items.map((usage) => usage.userId),
+        newestFirst.map((user) => user.id),
+        "per-user usage order, newest user first",
+      );
+      // The order matched, so every listed item belongs to one of the created users.
+      const usersById = new Map(users.map((user) => [user.id, user]));
+      for (const item of traversal.items) {
+        const user = usersById.get(item.userId);
+        check(user !== undefined, `per-user usage lists an unknown user ${item.userId}`);
+        checkListedUsage(item, { user, used: usedBy(user), form }, `per-user usage of ${user.id}`);
+      }
+      return [
+        traversal.pages,
+        `${String(traversal.items.length)} users in ${String(traversal.pages)} pages, live plan and limits checked`,
+      ];
+    }),
+  );
 
   const historyPages = await step("walk GET /v1/history", log, async () => {
     const traversal = await collectAllPages(

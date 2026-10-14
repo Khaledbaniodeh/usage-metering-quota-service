@@ -382,7 +382,8 @@ contract, and a contract change shows up as a failed end-to-end check, not a sil
 | `api-key.ts`    | `ApiKey` wrapper that redacts itself everywhere except the request header; `redactApiKeys()`         |
 | `api-types.ts`  | Response shapes of the public contract                                                               |
 | `pagination.ts` | Walks a cursor list to `nextCursor: null`, rejecting duplicates, repeated cursors and endless lists  |
-| `workflow.ts`   | The example scenario and its domain assertions                                                       |
+| `checks.ts`     | Domain assertions: decisions, usage month forms, live-plan fields of list items                      |
+| `workflow.ts`   | The example scenario, with month-change detection                                                    |
 | `cli.ts`        | Configuration (`API_BASE_URL`), output, exit codes; injectable for tests                             |
 | `main.ts`       | Process entry (`npm run client:example`)                                                             |
 
@@ -396,10 +397,14 @@ contract, and a contract change shows up as a failed end-to-end check, not a sil
 **Failure handling.**
 
 - One `ApiError` with a kind: `status`, `timeout`, `network` or `response`.
-- Its message holds the method, path and query, the status and the service's error code and
-  message.
-- Request headers, response bodies and the original network error are never included; only a
-  network error's code (for example `ECONNREFUSED`) is kept.
+- Its message holds the endpoint call (method, documented path and the call's own query), the
+  status and the service's `error.code`, which is echoed only when it is a well-formed
+  upper-case code.
+- The call label is built without the base URL, so a configured host or path prefix never
+  appears. The request itself still goes to the full prefixed URL.
+- Never included: the service's error message or any other response-body value, request
+  headers, or the original network error. Only a network error's code (for example
+  `ECONNREFUSED`) and the service origin are kept.
 - Each request has an `AbortController` deadline covering the response and its body.
 
 **API key handling.** The key exists only in memory, inside `ApiKey`, from the moment the
