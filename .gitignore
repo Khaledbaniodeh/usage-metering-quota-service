@@ -4,6 +4,8 @@ node_modules/
 # Build and test output
 dist/
 coverage/
+# Raw load-test output (small redacted evidence is committed under load/evidence/)
+load/results/
 *.tsbuildinfo
 
 # Environment files (only the example is tracked)
