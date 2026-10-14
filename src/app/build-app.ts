@@ -10,9 +10,13 @@ import {
 } from "../modules/auth/authenticate.js";
 import { consumeRoutes } from "../modules/consumption/consume.routes.js";
 import type { ConsumptionService } from "../modules/consumption/consume.service.js";
+import { historyRoutes } from "../modules/consumption/history.routes.js";
+import type { HistoryService } from "../modules/consumption/history.service.js";
 import { healthRoutes, type ReadinessCheck } from "../modules/health/health.routes.js";
 import { planRoutes } from "../modules/plans/plans.routes.js";
 import type { PlansService } from "../modules/plans/plans.service.js";
+import { usageRoutes } from "../modules/usage/usage.routes.js";
+import type { UsageService } from "../modules/usage/usage.service.js";
 import { userRoutes } from "../modules/users/users.routes.js";
 import type { UsersService } from "../modules/users/users.service.js";
 import { registerErrorHandling } from "./error-handler.js";
@@ -25,6 +29,8 @@ export interface AppDependencies {
   readonly plans: PlansService;
   readonly users: UsersService;
   readonly consumption: ConsumptionService;
+  readonly usage: UsageService;
+  readonly history: HistoryService;
   readonly resolveAccountByApiKeyHash: ResolveAccountByApiKeyHash;
 }
 
@@ -53,6 +59,8 @@ export async function buildApp(dependencies: AppDependencies) {
   await app.register(planRoutes, { plans: dependencies.plans, authenticate });
   await app.register(userRoutes, { users: dependencies.users, authenticate });
   await app.register(consumeRoutes, { consumption: dependencies.consumption, authenticate });
+  await app.register(usageRoutes, { usage: dependencies.usage, authenticate });
+  await app.register(historyRoutes, { history: dependencies.history, authenticate });
 
   return app;
 }

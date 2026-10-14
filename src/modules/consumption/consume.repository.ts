@@ -20,7 +20,8 @@ export interface NewDecision extends ConsumeDecision {
   readonly accountId: string;
 }
 
-interface DecisionRow {
+/** A consume_decisions row as selected with DECISION_COLUMNS. */
+export interface DecisionRow {
   readonly request_id: string;
   readonly user_id: string;
   readonly units: number;
@@ -41,7 +42,8 @@ interface DecisionRow {
   readonly processed_at: Date;
 }
 
-const DECISION_COLUMNS = `request_id, user_id, units, accepted, blocking_rule, blocking_level,
+/** The columns of a stored decision, in the order DecisionRow expects. */
+export const DECISION_COLUMNS = `request_id, user_id, units, accepted, blocking_rule, blocking_level,
   account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,
   account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,
   user_max_units_per_request, user_used_before, month, processed_at`;
@@ -237,7 +239,7 @@ export async function insertDecision(
   return toDecision(row);
 }
 
-function toDecision(row: DecisionRow): ConsumeDecision {
+export function toDecision(row: DecisionRow): ConsumeDecision {
   return {
     requestId: row.request_id,
     userId: row.user_id,

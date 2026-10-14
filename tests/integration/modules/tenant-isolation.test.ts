@@ -9,7 +9,7 @@ import { createIntegrationApp, type IntegrationApp } from "../../helpers/test-ap
 import { withTestClient } from "../../helpers/test-database.js";
 
 /**
- * Cross-tenant coverage for the Phase 3 resources: account B uses its own valid API key against
+ * Cross-tenant coverage for the Phase 3 resources (and, at the end, Phase 5 reads): account B uses its own valid API key against
  * every endpoint, aiming at account A's custom plans and users. B must see none of A's resources,
  * get the same answer as for resources that do not exist, and change nothing of A's.
  */
@@ -236,5 +236,114 @@ describe("the owner's own view is unaffected", () => {
     const user = await send(owner, "GET", `/v1/users/${ownerUser.id}`, undefined, 200);
 
     expect(user.json<{ plan: { maxUnitsPerRequest: number } }>().plan.maxUnitsPerRequest).toBe(65);
+  });
+});
+
+describe("usage, history and pagination across accounts", () => {
+  const INVALID_CURSOR = '{"error":{"code":"VALIDATION_ERROR","message":"Invalid cursor"}}';
+  let ownerDecisionId: string;
+
+  beforeAll(async () => {
+    // A second owner user, so the owner's user lists have a next page.
+    await create(owner, "/v1/users", { name: "Owner Secret Second User" });
+    for (const [account, userId, requestId] of [
+      [owner, ownerUser.id, "owner-1"],
+      [owner, ownerUser.id, "owner-2"],
+      [intruder, intruderUser.id, "intruder-1"],
+    ] as const) {
+      const response = await authenticatedRequest(integration.app, account, {
+        method: "POST",
+        url: "/v1/consume",
+        payload: { userId, units: 5, requestId },
+      });
+      expect(response.statusCode, response.body).toBe(200);
+    }
+    ownerDecisionId = await withTestClient(async (client) => {
+      const result = await client.query<{ id: string }>(
+        "SELECT id FROM consume_decisions WHERE account_id = $1 ORDER BY seq LIMIT 1",
+        [owner.id],
+      );
+      return result.rows[0]?.id ?? "";
+    });
+  });
+
+  it.each([
+    "/v1/usage",
+    "/v1/usage?month=2026-10",
+    "/v1/usage/users",
+    "/v1/users",
+    "/v1/history",
+    "/v1/history?month=2026-10",
+  ])("GET %s shows the caller only its own data", async (url) => {
+    const response = await send(intruder, "GET", url, undefined, 200);
+
+    expect(revealsOwner(response.body)).toBe(false);
+    expect(response.body).not.toContain("owner-");
+  });
+
+  it("counts only the caller's own consumption", async () => {
+    const usage = await send(intruder, "GET", "/v1/usage", undefined, 200);
+
+    expect(usage.json<{ used: number }>().used).toBe(5);
+  });
+
+  it.each([
+    ["user usage", (id: string) => `/v1/users/${id}/usage`],
+    ["the history user filter", (id: string) => `/v1/history?userId=${id}`],
+  ])("answers another account's user in %s exactly like an unknown user", async (_label, url) => {
+    const foreign = await send(intruder, "GET", url(ownerUser.id));
+    const missing = await send(intruder, "GET", url(UNKNOWN_ID));
+
+    expect(foreign.statusCode).toBe(404);
+    expect(foreign.body).toBe(missing.body);
+  });
+
+  it.each(["/v1/users", "/v1/usage/users", "/v1/history"])(
+    "refuses the owner's own %s cursor when the intruder presents it",
+    async (path) => {
+      const ownerPage = await send(owner, "GET", `${path}?limit=1`, undefined, 200);
+      const cursor = ownerPage.json<{ nextCursor: string | null }>().nextCursor;
+      expect(cursor).not.toBeNull();
+
+      const stolen = await send(intruder, "GET", `${path}?cursor=${String(cursor)}`);
+
+      expect(stolen.statusCode).toBe(400);
+      expect(stolen.body).toBe(INVALID_CURSOR);
+    },
+  );
+
+  it("refuses constructed cursors anchored on the owner's rows", async () => {
+    const encode = (json: object) => Buffer.from(JSON.stringify(json)).toString("base64url");
+    const attempts = [
+      ["/v1/users", encode({ v: 1, k: "users", a: ownerUser.id })],
+      [
+        "/v1/usage/users",
+        encode({ v: 1, k: "usage-users", a: ownerUser.id, m: "2026-10", c: true }),
+      ],
+      ["/v1/history", encode({ v: 1, k: "history", a: ownerDecisionId, u: null, m: null })],
+    ] as const;
+
+    for (const [path, cursor] of attempts) {
+      const response = await send(intruder, "GET", `${path}?cursor=${cursor}`);
+      expect(response.statusCode, path).toBe(400);
+      expect(response.body).toBe(INVALID_CURSOR);
+    }
+  });
+
+  it("issues cursors that carry a row UUID and never a sequence number", async () => {
+    for (const path of ["/v1/users", "/v1/usage/users", "/v1/history"]) {
+      const page = await send(owner, "GET", `${path}?limit=1`, undefined, 200);
+      const cursor = page.json<{ nextCursor: string }>().nextCursor;
+      const decoded = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as Record<
+        string,
+        unknown
+      >;
+
+      expect(Object.keys(decoded).slice(0, 3)).toEqual(["v", "k", "a"]);
+      expect(decoded.a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+      const numbers = Object.entries(decoded).filter(([, value]) => typeof value === "number");
+      expect(numbers).toEqual([["v", 1]]);
+      expect(cursor).not.toMatch(/seq/i);
+    }
   });
 });

@@ -45,7 +45,7 @@ no import-time side effects. The example client talks to the service over HTTP o
 
 ## Source layout
 
-Directories are created when a phase adds real code to them. As of Phase 4:
+Directories are created when a phase adds real code to them. As of Phase 5:
 
 ```
 src/
@@ -60,13 +60,16 @@ src/
     accounts/          account schemas, routes, service and repository; account plan switching
     auth/              API-key primitives and the X-API-Key authentication hook
     consumption/       pure quota rules (domain), consume schemas, routes, service and
-                       repository
+                       repository; decision history (history.*)
     health/            liveness and readiness routes; owns the readiness port
     plans/             plan schemas, routes, service and repository; the shared plan summary
                        columns and the plan-assignment outcome used by accounts and users
-    users/             user schemas, routes, service and repository; user plan switching
+    usage/             account and per-user monthly usage
+    users/             user schemas, routes, service and repository; user plan switching and
+                       the paginated user list
   shared/              cross-cutting pieces with one clear owner each: clock, logger, error
-                       catalogue, HTTP error contract, display-name schema
+                       catalogue, HTTP error contract, display-name schema, UTC months,
+                       strict query parameters, opaque cursors
 tests/
   unit/                no database; mirrors src/
   integration/         real PostgreSQL; mirrors src/
@@ -255,6 +258,114 @@ Every decision returns HTTP 200 with `accepted: true` or `accepted: false`.
   `updatedAt` (covered by a concurrency test).
 - **Clock:** each mutation reads the injected clock once and uses that value for every timestamp
   it writes.
+
+## Usage, history and pagination
+
+Phase 5 is read-only. Its queries take no locks, so reads and consumes never wait for each other.
+Every statement filters by the authenticated `account_id`.
+
+**Usage** (`src/modules/usage/`):
+
+- `GET /v1/usage` and `GET /v1/users/{userId}/usage` read one month's counter and the live plan in
+  one statement:
+  `accounts|users JOIN plans LEFT JOIN *_monthly_usage ON (…, month)`.
+  A missing counter row reads as `0` through `coalesce`.
+- The clock is read once per request, to resolve the default month and reject future months.
+- The current month returns live limits and `remaining = max(0, allowance − used)`; a past month
+  returns `used` only (EC14).
+- Two queries per request: authentication and the statement.
+
+**History** (`src/modules/consumption/history.*`):
+
+- Pages select stored `consume_decisions` rows and build each item with the same
+  `toDecisionResponse` as `POST /v1/consume`, so items are byte-identical to the original
+  responses. Current plans are never joined.
+- The clock is read only when a month is in effect (the future-month check), and then once.
+
+**Keyset pagination.** Each list pages on an immutable identity column (`seq`), and fetches one
+extra row to know whether a next page exists:
+
+| Endpoint              | ORDER BY     | Continuation          | Index                                                                                                    |
+| --------------------- | ------------ | --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `GET /v1/users`       | `u.seq ASC`  | `AND u.seq > $anchor` | `users_account_id_seq_key (account_id, seq)`                                                             |
+| `GET /v1/usage/users` | `u.seq DESC` | `AND u.seq < $anchor` | same, scanned backward; `user_monthly_usage_pkey (user_id, month)` for the usage join                    |
+| `GET /v1/history`     | `seq DESC`   | `AND seq < $anchor`   | `consume_decisions_account_id_seq_key`, `…_account_user_seq_idx` or `…_account_month_seq_idx`, by filter |
+
+- History filters are bound values appended from constant SQL fragments, so there are exactly
+  four statement shapes: none, user, month, user and month.
+- **Queries per request**, including authentication, constant whatever the page size:
+
+| Endpoint              | First page                     | Continuation |
+| --------------------- | ------------------------------ | ------------ |
+| `GET /v1/users`       | 2                              | 3            |
+| `GET /v1/usage/users` | 2                              | 3            |
+| `GET /v1/history`     | 2, or 3 with a `userId` filter | 3            |
+
+**Cursors** (`src/shared/cursor.ts`):
+
+- **Format:** unpadded base64url of canonical JSON, in three kinds that never cross endpoints:
+  - `{"v":1,"k":"users","a":<user UUID>}`
+  - `{"v":1,"k":"usage-users","a":<user UUID>,"m":"YYYY-MM","c":<bool>}`
+  - `{"v":1,"k":"history","a":<decision UUID>,"u":<UUID|null>,"m":<"YYYY-MM"|null>}`
+- **Anchor:** the last returned row's UUID, resolved to `seq` inside the account. For history it
+  is also resolved inside the effective user and month filters. A table-wide `seq` would reveal
+  platform-wide volume to every tenant. Resolving the UUID costs one indexed lookup on
+  continuation pages.
+- **Decoding** accepts only the encoder's exact bytes:
+  - at most 1024 characters, canonical base64url;
+  - fatal UTF-8 decoding;
+  - a plain object with exactly the expected keys and types;
+  - canonical re-encoding;
+  - version 1, the endpoint's kind and a lower-case UUID anchor.
+
+  Every failure is the same `400 Invalid cursor`.
+
+- **Not a credential:** cursors are neither signed nor encrypted. Authorization comes from the
+  account-scoped SQL, so a crafted cursor can only point within the caller's own rows.
+- **Self-contained:** a cursor binds the traversal's filters. A continuation may omit them or
+  repeat them exactly. A changed filter, an unresolvable anchor, or (for `usage-users`) a
+  current-month cursor after the UTC month changed is `Invalid cursor`.
+- **History error precedence:**
+  1. authentication;
+  2. request schema;
+  3. explicit future month;
+  4. cursor decoding, shape, version, kind, filters and rollover;
+  5. the effective user's existence (404);
+  6. the filter-scoped anchor (400);
+  7. the page.
+
+**Ordering guarantees.**
+
+- **No duplicates:** continuation is a strict comparison on a unique, immutable key.
+- **No gaps over a stable committed dataset.**
+- **Late commits:** `seq` is allocated when a row is inserted, which can precede its commit. A
+  row allocated below a page boundary that commits after that page was read is missed by that
+  traversal.
+  - **Users:** possible during concurrent user creation.
+  - **Decisions:** the insert happens while the account-month counter lock is held, so within one
+    account and month `seq` order equals commit order. The only exception is two requests
+    straddling a UTC month boundary, which lock different counter rows.
+  - `tests/integration/modules/pagination-consistency.test.ts` reproduces each case
+    deterministically.
+- **Newest-first lists** (`usage/users`, `history`) never show rows created after the traversal
+  began. The oldest-first user list appends them.
+- **Current-month usage lists** read usage and live plans per page, so they are not a cross-page
+  snapshot, and expire at the month's end so their form never changes mid-traversal.
+
+**Deferred: combined history index.**
+
+- **Current plan:** `userId` + `month` uses `(account_id, user_id, seq)` or
+  `(account_id, month, seq)` backward, with a filter on the other column.
+- **Risk:** for a heavy user and an old month, the first page scans that user's newer decisions.
+- **Why not now:** a fourth secondary index would be maintained by every consume, inside the
+  section that holds the account-month lock, without measured need.
+- **Phase 7 criterion:**
+  - Seed one user with at least 1,000,000 decisions across 12 or more months.
+  - Measure `EXPLAIN (ANALYZE, BUFFERS)` and a k6 read scenario for the oldest month's first
+    page.
+  - Add `(account_id, user_id, month, seq)` in a new migration only if p95 exceeds 50 ms or rows
+    removed by the filter exceed 100× the limit, **and** an A/B consume run keeps the consume p95
+    regression under 5%.
 
 ## Startup, health and shutdown
 

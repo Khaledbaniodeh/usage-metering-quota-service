@@ -3,6 +3,11 @@
  * arguments, so every rule, boundary and response field can be tested exhaustively in isolation.
  */
 
+import { toMonthKey } from "../../shared/utc-month.js";
+
+/** The UTC month helpers are shared; they are re-exported here for the consume workflow. */
+export { toMonthKey, utcMonthStart } from "../../shared/utc-month.js";
+
 export const QUOTA_RULES = ["MAX_UNITS_PER_REQUEST", "MONTHLY_ALLOWANCE"] as const;
 export type QuotaRule = (typeof QUOTA_RULES)[number];
 
@@ -69,21 +74,6 @@ export function evaluateQuota(input: QuotaInput): QuotaEvaluation {
   return failed === undefined
     ? { accepted: true }
     : { accepted: false, blockingRule: failed.rule, blockingLevel: failed.level };
-}
-
-/**
- * The first day of the UTC calendar month containing `instant`, as the `YYYY-MM-DD` date that
- * keys the monthly counters. Local time never takes part.
- */
-export function utcMonthStart(instant: Date): string {
-  const year = String(instant.getUTCFullYear()).padStart(4, "0");
-  const month = String(instant.getUTCMonth() + 1).padStart(2, "0");
-  return `${year}-${month}-01`;
-}
-
-/** The public `YYYY-MM` form of a stored month (`YYYY-MM-01`). */
-export function toMonthKey(monthStart: string): string {
-  return monthStart.slice(0, 7);
 }
 
 /** Units still available; zero (never negative) when an allowance was reduced below usage. */
