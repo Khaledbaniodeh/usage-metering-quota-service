@@ -1,5 +1,5 @@
 /**
- * The quota invariants as direct SQL, shared by the integration tests
+ * The 13 quota invariants as direct SQL, shared by the integration tests
  * (tests/helpers/quota-invariants.ts) and the load-test invariant checker (load/scripts). Each
  * query counts violating rows over the whole database, so a consistent database yields all zeros
  * and a failure names exactly which invariant broke.
@@ -15,10 +15,20 @@ export const INVARIANT_QUERIES = {
     SELECT count(*) FROM account_monthly_usage c
     WHERE c.used <> (SELECT coalesce(sum(d.units), 0) FROM consume_decisions d
                      WHERE d.account_id = c.account_id AND d.month = c.month AND d.accepted)`,
+  // Set-based: accepted units are aggregated once per (account, user, month) and joined to the
+  // counters, so the cost is one pass over the decisions however many counters exist. (A
+  // correlated subquery here scanned every decision once per counter row: no index leads with
+  // user_id.) A counter with no accepted decisions compares against 0; accepted decisions without
+  // a counter row are acceptedWithoutCounter's job.
   userCounterMismatch: `
     SELECT count(*) FROM user_monthly_usage c
-    WHERE c.used <> (SELECT coalesce(sum(d.units), 0) FROM consume_decisions d
-                     WHERE d.user_id = c.user_id AND d.month = c.month AND d.accepted)`,
+    LEFT JOIN (
+      SELECT account_id, user_id, month, sum(units) AS used
+      FROM consume_decisions
+      WHERE accepted
+      GROUP BY account_id, user_id, month
+    ) d ON d.account_id = c.account_id AND d.user_id = c.user_id AND d.month = c.month
+    WHERE c.used <> coalesce(d.used, 0)`,
   acceptedWithoutCounter: `
     SELECT count(*) FROM consume_decisions d
     WHERE d.accepted AND (
