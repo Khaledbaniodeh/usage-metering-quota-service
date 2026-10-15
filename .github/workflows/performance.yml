@@ -80,7 +80,8 @@ jobs:
             | sed -E 's/umqs_[A-Za-z0-9_-]+/umqs_[REDACTED]/g; s#(postgres(ql)?://[^:/@ ]+):[^@ ]+@#\1:[REDACTED]@#g'
 
       # After a failed benchmark: report whatever results exist as an explicitly incomplete bundle
-      # (complete: false, no decision). Never replaces a complete bundle, never needs the database,
+      # (complete: false, no decision), even when the run failed before creating its results
+      # directory (resultsDirectoryPresent: false). Never replaces a complete bundle, never needs the database,
       # and never changes the failed outcome of the benchmark step. The scan below runs after it.
       - name: Build a partial evidence bundle after a failed benchmark
         if: failure() && steps.bench.outcome == 'failure'
@@ -88,10 +89,6 @@ jobs:
         run: |
           if [[ -f "${WORK_DIR}/evidence/summary.json" ]]; then
             echo "a complete evidence bundle exists; it is not replaced"
-            exit 0
-          fi
-          if [[ ! -d "${WORK_DIR}/results" ]]; then
-            echo "no results were produced; there is nothing to report"
             exit 0
           fi
           # The password is passed only so the report can redact it; no connection is made.

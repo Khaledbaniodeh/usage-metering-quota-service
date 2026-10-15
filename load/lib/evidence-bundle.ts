@@ -101,6 +101,8 @@ export interface BundleInput {
   /** Literal secrets to redact and scan for (database password, issued API key). */
   readonly secrets: readonly string[];
   readonly now: Date;
+  /** False when the results directory did not exist at all (the run failed before any result). */
+  readonly resultsDirectoryPresent?: boolean;
 }
 
 export interface EvidenceBundle {
@@ -227,11 +229,13 @@ export function buildEvidenceBundle(input: BundleInput): EvidenceBundle {
           ),
         });
   const complete = mode === "complete";
+  const resultsDirectoryPresent = input.resultsDirectoryPresent ?? true;
 
   const summary = {
     schema: EVIDENCE_SCHEMA,
     complete,
     benchmarkStepFailed: !complete,
+    resultsDirectoryPresent,
     commitSha: input.commitSha,
     profile: input.profile,
     generatedAt: input.now.toISOString(),
@@ -273,6 +277,11 @@ export function buildEvidenceBundle(input: BundleInput): EvidenceBundle {
       : [
           "## Missing or invalid evidence",
           "",
+          ...(resultsDirectoryPresent
+            ? []
+            : [
+                "- The results directory did not exist: the benchmark failed before producing any result.",
+              ]),
           `- Runs without a k6 summary: ${list(missing.runLabels)}`,
           `- Missing result files: ${list(missing.files)}`,
           `- Invalid result files: ${list(invalidFiles.map((f) => f.file))}`,

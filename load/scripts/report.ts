@@ -13,11 +13,13 @@
  *   decision.md         the Markdown table and the decision, or why none is computed
  *
  * REPORT_MODE=partial is used only after a failed benchmark step: the bundle is marked
- * incomplete and never computes a decision. Needs no database: it reads result files only.
+ * incomplete and never computes a decision. A RESULTS_DIR that does not exist still yields a
+ * bundle, recorded as resultsDirectoryPresent: false, with every run and file listed as missing.
+ * Needs no database: it reads result files only.
  * Every file is redacted and then scanned; any finding fails the report and nothing is written.
  * An existing, non-empty EVIDENCE_DIR is never overwritten.
  */
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { benchDatabase } from "../lib/bench-db.js";
 import { Refusal, required, resultsDir, runMain } from "../lib/cli.js";
@@ -62,6 +64,11 @@ function main(): void {
     throw new Refusal("EVIDENCE_DIR must be an absolute path");
   }
   assertEvidenceDirectoryFree(evidence);
+  // Recorded before resultsDir() creates the directory: an absent directory means no result at all.
+  const configured = env.RESULTS_DIR?.trim() ?? "";
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- RESULTS_DIR set by the workflow; resultsDir() validates it next
+  const configuredExists = configured !== "" && existsSync(configured);
+  const resultsDirectoryPresent = configured === "" || configuredExists;
   const results = resultsDir(env);
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- resultsDir()
   const names = readdirSync(results);
@@ -76,6 +83,7 @@ function main(): void {
     source: { names, readText, readJson: (name) => JSON.parse(readText(name)) as unknown },
     secrets: secrets(),
     now: new Date(),
+    resultsDirectoryPresent,
   });
 
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- EVIDENCE_DIR validated as absolute and free

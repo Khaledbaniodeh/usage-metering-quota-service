@@ -329,3 +329,59 @@ describe("assertEvidenceDirectoryFree", () => {
     }).toThrow(EvidenceError);
   });
 });
+
+describe("a benchmark that failed before producing any result", () => {
+  const noResults = (present: boolean) =>
+    buildEvidenceBundle({
+      profile: "smoke",
+      commitSha: SHA,
+      mode: "partial",
+      source: source({}),
+      secrets: [],
+      now: new Date("2026-10-15T00:00:00Z"),
+      resultsDirectoryPresent: present,
+    });
+
+  it("still yields an incomplete bundle that lists every run and file as missing", () => {
+    const bundle = noResults(false);
+    const summary = summaryOf(bundle);
+
+    expect(summary).toMatchObject({
+      complete: false,
+      benchmarkStepFailed: true,
+      resultsDirectoryPresent: false,
+      decision: { computed: false },
+    });
+    expect(bundle.missing.runLabels).toEqual([
+      "hist-s2-a-1",
+      "ab-dist-a-1",
+      "ab-hot-a-1",
+      "diag-spread",
+      "diag-account",
+      "diag-user",
+      "race-identical",
+      "race-conflicting",
+    ]);
+    expect(bundle.missing.files).toContain("environment.json");
+    expect([...bundle.files.keys()].sort()).toEqual(["decision.md", "summary.json"]);
+    expect(findSecrets([...bundle.files.values()].join("\n"))).toEqual([]);
+  });
+
+  it("says in decision.md that the results directory did not exist", () => {
+    const table = noResults(false).files.get("decision.md") ?? "";
+
+    expect(table).toContain(
+      "- The results directory did not exist: the benchmark failed before producing any result.",
+    );
+    expect(table).not.toMatch(/Eligible:/);
+  });
+
+  it("does not claim an absent directory for an empty but existing one", () => {
+    expect(summaryOf(noResults(true)).resultsDirectoryPresent).toBe(true);
+    expect(noResults(true).files.get("decision.md")).not.toContain("did not exist");
+  });
+
+  it("reports the directory as present in normal bundles", () => {
+    expect(summaryOf(build(stoppedEarly(), "complete")).resultsDirectoryPresent).toBe(true);
+  });
+});
