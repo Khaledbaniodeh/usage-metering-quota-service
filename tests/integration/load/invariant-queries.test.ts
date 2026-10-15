@@ -13,13 +13,14 @@ import { withTestClient } from "../../helpers/test-database.js";
 /**
  * The invariant catalogue against real PostgreSQL, focused on the set-based userCounterMismatch.
  * The fixture is the load-test seed at a tiny scale (two tenants, five users, twelve months, with
- * rejections), consistent by construction. Each corruption runs inside a transaction that is
+ * rejections, and monthly volumes that differ), consistent by construction. Each corruption runs inside a transaction that is
  * rolled back, so cases never affect each other.
  */
 
 const TINY: DatasetProfile = {
   name: "smoke",
-  heavyUserDecisions: 36,
+  // 37, not 36: January gets one more row, so monthly sums differ and a missing month key shows.
+  heavyUserDecisions: 37,
   backgroundUsers: 2,
   backgroundDecisionsPerUser: 12,
   noiseUsers: 2,
@@ -80,6 +81,24 @@ describe("the fixture", () => {
     });
 
     expect(shape).toEqual({ accounts: 2, users: 5, months: 12, rejected: 12, user_counters: 60 });
+  });
+});
+
+describe("the fixture's monthly variation", () => {
+  it("gives the heavy user different accepted units in different months", async () => {
+    // Without this, a check that ignored the month could still pass on consistent data.
+    const perMonth = await withTestClient(async (client) => {
+      const result = await client.query<{ month: string; used: number }>(
+        `SELECT to_char(month, 'YYYY-MM') AS month, used::int AS used FROM user_monthly_usage
+         WHERE user_id = ${HEAVY_USER} AND month IN ('2025-01-01', '2025-02-01') ORDER BY month`,
+      );
+      return result.rows;
+    });
+
+    expect(perMonth).toEqual([
+      { month: "2025-01", used: 8 },
+      { month: "2025-02", used: 3 },
+    ]);
   });
 });
 
