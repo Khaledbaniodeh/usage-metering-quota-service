@@ -8,5 +8,5 @@ package-lock.json
 # Raw load-test output: generated, Git-ignored, never formatted
 load/results/
 
-# Committed benchmark evidence JSON is kept byte-for-byte as the tooling wrote it
-load/evidence/**/*.json
+# Committed benchmark evidence is kept byte-for-byte as the tooling wrote it
+docs/evidence/

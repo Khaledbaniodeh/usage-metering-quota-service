@@ -4,7 +4,7 @@ node_modules/
 # Build and test output
 dist/
 coverage/
-# Raw load-test output (small redacted evidence is committed under load/evidence/)
+# Raw load-test output (small redacted evidence is committed under docs/evidence/)
 load/results/
 *.tsbuildinfo
 
