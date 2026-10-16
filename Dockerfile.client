@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1
+
+# Image of the example client (client/), run once by the `client` service in compose.yaml.
+#   build    installs the build tools and compiles client/ to JavaScript
+#   runtime  Node plus the compiled client only: no service source, no node_modules, non-root
+#
+# The client uses only Node's built-in modules, so its runtime needs no dependencies. Its build
+# context is limited by Dockerfile.client.dockerignore, separate from the service image's.
+
+ARG NODE_IMAGE=node:22.23.3-bookworm-slim
+
+FROM ${NODE_IMAGE} AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY tsconfig.json tsconfig.client.json ./
+COPY client ./client
+RUN npm run build:client \
+  && printf '{ "private": true, "type": "module" }\n' > dist/client/package.json
+
+FROM ${NODE_IMAGE} AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+# Compiled files stay owned by root and read-only for the unprivileged runtime user.
+COPY --from=build /app/dist/client ./
+USER node
+# Exits 0 only when every step of the example workflow passed (1: a step failed, 2: bad config).
+CMD ["node", "main.js"]

@@ -11,10 +11,18 @@ const STEPS = [
   "health",
   "create account",
   "create users",
+  "find the predefined user plans",
+  "switch user 2 to Premium",
+  "users on different plans",
   "accepted request",
   "idempotent retry",
-  "second accepted request",
-  "quota rejection",
+  "user-limit rejection",
+  "Premium user allowed the same amount",
+  "create a shared account plan",
+  "assign it to the account",
+  "account-limit rejection",
+  "raise the shared plan",
+  "accepted after the plan update",
   "account usage",
   "user usage",
   "walk GET /v1/users",
@@ -67,7 +75,7 @@ describe("example client against the running service", () => {
       expect(run.stdout).toContain(`[ok] ${step}: `);
     }
     expect(run.stdout).toMatch(
-      /^Example workflow passed: account [0-9a-f-]{36}, month \d{4}-\d{2}, 3 users, 2 accepted and 1 rejected decisions, 12 units used; walked 3\/3\/3 pages \(users\/usage\/history\)\.$/m,
+      /^Example workflow passed: account [0-9a-f-]{36}, month \d{4}-\d{2}, 3 users, 3 accepted and 2 rejected decisions, 40 units used; walked 3\/3\/5 pages \(users\/usage\/history\)\.$/m,
     );
   });
 });

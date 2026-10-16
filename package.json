@@ -11,6 +11,7 @@
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "npm run clean && tsc -p tsconfig.build.json && npm run build:migrations",
+    "build:client": "tsc -p tsconfig.client.json",
     "build:migrations": "node -e \"require('node:fs').cpSync('src/db/migrations', 'dist/db/migrations', { recursive: true })\"",
     "dev": "node --env-file-if-exists=.env --watch --import tsx src/main.ts",
     "start": "node dist/main.js",

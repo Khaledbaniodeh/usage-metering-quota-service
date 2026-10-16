@@ -92,7 +92,7 @@ jobs:
       - name: Start the Compose stack from a fresh database volume and wait until every service is healthy
         run: |
           docker compose down --volumes --remove-orphans
-          docker compose up --build --detach --wait --wait-timeout 180
+          docker compose up --build --detach --wait --wait-timeout 180 postgres api
 
       - name: Verify both health endpoints from the host
         run: |

@@ -1,0 +1,9 @@
+# Build context of Dockerfile.client (BuildKit reads this file instead of .dockerignore for that
+# Dockerfile): only what the client image build copies. Everything else, including every
+# environment file and the service's source, stays out.
+*
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.client.json
+!client/

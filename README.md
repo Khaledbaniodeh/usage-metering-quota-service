@@ -26,11 +26,12 @@ Implemented so far:
   pagination with opaque cursors for the user, usage and history lists.
 - One catalogue of stable error codes behind a single JSON error shape.
 - Liveness and readiness endpoints and generated OpenAPI documentation.
-- Production Docker image and a Docker Compose stack (service + PostgreSQL).
+- Production Docker images and a Docker Compose stack: PostgreSQL, the service and the example
+  client.
 - Unit tests, and integration tests against a real PostgreSQL database, including an
   account-isolation harness.
-- A typed example client that exercises the whole public API, run end to end against the Compose
-  stack in CI.
+- A typed example client that demonstrates every required behavior through the public API, run
+  as a Compose service.
 
 **Not implemented yet:** load tests. They arrive in later, separately verified phases described in
 [docs/architecture.md](docs/architecture.md).
@@ -56,10 +57,17 @@ when a value is missing or invalid; only `DATABASE_URL` is required.
 ## Running with Docker Compose
 
 ```bash
-docker compose up --build        # PostgreSQL + service; migrations run before the service listens
+docker compose up --build        # PostgreSQL + service + one run of the example client
+docker compose run --rm client   # run the example client again (exit code 0 = every step passed)
 docker compose down              # stop and remove containers; the database volume is kept
 docker compose down --volumes    # also delete the database volume (destroys local data)
 ```
+
+`docker compose up --build` starts PostgreSQL, runs the migrations and predefined-plan setup before
+the service listens, and starts the example client once the service reports healthy. The client's
+output appears among the logs (prefixed `client-1`); it ends with `Example workflow passed` and
+the client container exits with code 0, or it names the failed step and exits with code 1. The
+database and the service keep running for your own requests. See [Example client](#example-client).
 
 The service is published on `http://127.0.0.1:8080` and PostgreSQL on `127.0.0.1:5432` (loopback
 only; change with `API_HOST_PORT` and `POSTGRES_HOST_PORT`). The Compose credentials are
@@ -482,9 +490,21 @@ The Docker image's health check calls `/health/ready`.
 
 `client/` holds a small TypeScript client for the public HTTP API and an example workflow that
 uses it. It is built on Node 22's native `fetch`, adds no dependency, and knows only the documented
-contract: no database access and no service internals. It is excluded from the Docker image.
+contract: no database access and no service internals.
 
-Run it against a running stack (for example `docker compose up --build --wait`):
+**Run it with Docker Compose** (the `client` service, built from
+[Dockerfile.client](Dockerfile.client)):
+
+```bash
+docker compose up --build        # runs the client once, after the service is healthy
+docker compose run --rm client   # runs it again; the command's exit code is the client's
+```
+
+The client container reaches the service at `http://api:8080`, its only configuration. It never
+receives database settings, runs as the unprivileged `node` user, and its image holds only the
+compiled client: no service source and no `node_modules`.
+
+**Or run it from the host** against a running service:
 
 ```bash
 npm run client:example
@@ -495,36 +515,41 @@ npm run client:example
 | `API_BASE_URL` | `http://127.0.0.1:8080` | Service root; http or https, without credentials, query or fragment |
 
 The workflow creates a new, uniquely named account each run, so it can be repeated against the
-same stack. It prints one line per step and a summary of IDs and counts:
+same stack. It prints one line per step. With the predefined plans (Starter 10,000 units a month
+and 100 per request for the account; Basic 1,000 and 20, Premium 10,000 and 100 for users) it
+demonstrates:
 
-1. Checks `/health/live` and `/health/ready`.
-2. Creates an account and three users.
-3. Sends an accepted request (5 units).
-4. Retries it with the same `requestId` and requires the identical response, byte for byte.
-5. Sends a second accepted request (7 units) for another user.
-6. Sends one unit above the user plan's per-request limit, which must be rejected with
-   `MAX_UNITS_PER_REQUEST` at `USER` level, with usage unchanged.
+1. **Different plans in one account:** three users are created on Basic, user 2 is switched to
+   Premium, and both users are read back with the account's key.
+2. **An accepted request:** user 1 (Basic) consumes 10 units. Its retry with the same `requestId`
+   returns the identical response, byte for byte, and account usage stays at 10.
+3. **A rejection by the user's limit:** user 1 asks for 25 units, above Basic's 20 per request.
+   It is rejected with `MAX_UNITS_PER_REQUEST` at `USER` level, and nothing is counted.
+4. **The other plan allows it:** user 2 (Premium) consumes the same 25 units. Account usage: 35.
+5. **A rejection by the shared account limit:** a custom `ACCOUNT` plan allowing exactly 35 units a
+   month is created and assigned to the account. User 2 asks for 5 units, which Premium allows; it
+   is rejected with `MONTHLY_ALLOWANCE` at `ACCOUNT` level, and nothing is counted.
+6. **A plan change, with no client change:** the custom plan is raised to 40 units, and the same
+   5-unit request (with a new `requestId`) is accepted.
+7. **Usage and history:** account usage is 40 = 10 + 30 + 0 for the three users, and
+   `GET /v1/users`, `GET /v1/usage/users` and `GET /v1/history` are walked with `limit=1`
+   until `nextCursor` is `null`. The history holds exactly the five decisions, each equal to
+   its original response.
 
-   Every decision must echo the `requestId`, `userId` and `units` that were sent.
+Every decision is printed as one line with its request ID, the outcome, the blocking rule and
+level of a rejection, and for the user and the account the plan, the units used and the units
+remaining, for example:
 
-7. Checks account usage (12 units) and each user's usage (5, 7, 0).
-   - Account usage is read without `month`, which reports the current month: it must be the
-     decisions' month, in the current-month form.
-   - Every usage response must carry `monthlyAllowance`, `maxUnitsPerRequest` and `remaining`
-     together or not at all. When present, each must match the plan.
-8. Walks `GET /v1/users`, `GET /v1/usage/users` and `GET /v1/history` with `limit=1` until
-   `nextCursor` is `null`.
-   - **All lists:** no duplicates, and the expected order and values.
-   - **`/v1/usage/users`:** every page has the same `currentMonth`, matching the other usage
-     responses. On current-month pages, each user's plan ID, plan name, limits and `remaining`
-     are checked.
-   - **`/v1/history`:** exactly three decisions, each equal to its original response.
-   - With usage at 12, this proves the retry neither counted nor recorded anything.
+```text
+[ok] account-limit rejection: <run>-account-rejected: REJECTED 5 units by ACCOUNT MONTHLY_ALLOWANCE | user "Premium" 25 used, 9975 remaining | account "Example shared cap" 35 used, 0 remaining; user plan alone would allow it (5 <= 100 per request, 9975 remaining); nothing was counted
+```
 
-Expectations are derived from the API's own responses (plan limits, IDs, the decisions' `month`),
-never from the local clock. If the UTC month changes during a run, the usage forms legitimately
-change; the client detects this through the API and asks for a rerun instead of reporting a
-defect.
+Each decision is checked exactly: the echoed request, the outcome, and for both levels the plan,
+limits, usage and remaining units. Usage responses must carry `monthlyAllowance`,
+`maxUnitsPerRequest` and `remaining` together or not at all, matching the plan. Expectations are
+derived from the API's own responses (plan limits, IDs, the decisions' `month`), never from the
+local clock. If the UTC month changes during a run, the client detects this through the API and
+asks for a rerun instead of reporting a defect.
 
 **Exit codes and errors:**
 

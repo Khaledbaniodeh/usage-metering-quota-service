@@ -1,4 +1,6 @@
-# Local development stack: `docker compose up --build`
+# Local development stack: `docker compose up --build` starts PostgreSQL and the service, then runs
+# the example client once against it (its output appears with the other logs; it exits 0 only when
+# every step passed). Run the client again with `docker compose run --rm client`.
 #
 # All credentials below are LOCAL DEVELOPMENT ONLY defaults. Override them through environment
 # variables or a git-ignored .env file (see .env.example). POSTGRES_PASSWORD must stay URL-safe
@@ -44,6 +46,21 @@ services:
         condition: service_healthy
     # Longer than the service's default SHUTDOWN_TIMEOUT_MS (10 s) so graceful shutdown can finish.
     stop_grace_period: 15s
+
+  # The example client: a one-shot command-line run of the full example workflow (client/).
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+      target: runtime
+    image: usage-metering-quota-service-client:local
+    environment:
+      # The service by its Compose hostname. The client gets no database settings or credentials.
+      API_BASE_URL: http://api:8080
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   postgres-data:
