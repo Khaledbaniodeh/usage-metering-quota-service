@@ -7,484 +7,192 @@ it.
 
 ## Status
 
-**Implementation Phase 6: example client and end-to-end Compose verification.**
+All behavior required by the project specification is implemented and checked by automated tests
+and CI:
 
-Implemented so far:
+- **Accounts and API keys:** account creation with a one-time key, `X-API-Key` authentication and
+  strict tenant isolation.
+- **Plans and users:** four predefined plans, custom plans (create, update), users, and plan
+  switching for the account and each user.
+- **Quota decisions:** `POST /v1/consume` applies the account and user plans together, counts
+  accepted units atomically and records every decision with the plans it used.
+- **Safe retries:** idempotent request IDs, with byte-identical replays and `409` for a reused ID.
+- **Usage and history:** current and past months for the account and each user, and the decision
+  history, all with cursor pagination.
+- **Example client:** a one-shot Docker Compose service that demonstrates every required behavior.
+- **Proof:** unit tests; integration tests against real PostgreSQL, including deterministic
+  concurrency, plan-change, restart and tenant-isolation tests; an end-to-end Compose run in CI
+  with a persistence check across a stack rebuild.
+- **Performance:** committed load-test tooling and the results of a full benchmark
+  ([docs/performance.md](docs/performance.md)).
 
-- Fastify 5 service with strictly validated configuration and request bodies, structured JSON
-  logging with credential redaction, and graceful startup and shutdown.
-- PostgreSQL schema for plans, accounts, users, monthly usage counters and the immutable decision
-  history, created by a forward-only migration runner, plus the four predefined plans.
-- Account creation with a one-time API key, X-API-Key authentication and the authenticated
-  account endpoint.
-- Plan listing, custom plans (create and update) and account-scoped users, with plan switching
-  for the account and each of its users under strict tenant isolation.
-- Atomic, idempotent consumption: `POST /v1/consume` checks the four account and user limits,
-  counts accepted units in monthly counters and records every decision immutably, with safe
-  retries, bounded lock waiting and proven behavior under concurrent requests.
-- Monthly usage for the account and each user, the immutable decision history, and keyset
-  pagination with opaque cursors for the user, usage and history lists.
-- One catalogue of stable error codes behind a single JSON error shape.
-- Liveness and readiness endpoints and generated OpenAPI documentation.
-- Production Docker images and a Docker Compose stack: PostgreSQL, the service and the example
-  client.
-- Unit tests, and integration tests against a real PostgreSQL database, including an
-  account-isolation harness.
-- A typed example client that demonstrates every required behavior through the public API, run
-  as a Compose service.
+The results describe the measured environment; the specification sets no service-level targets
+(see [Known limitations](#known-limitations)).
 
-**Not implemented yet:** load tests. They arrive in later, separately verified phases described in
-[docs/architecture.md](docs/architecture.md).
+## Quick start
 
-## Prerequisites
-
-- Node.js 22 (see [.nvmrc](.nvmrc); minimum `22.13.0`) and npm
-- Docker with Docker Compose v2, for the containerized stack and the local test database
-- PostgreSQL 16 (provided by Docker Compose)
-
-## Environment setup
+**Prerequisites:** Docker with Docker Compose v2. Node.js 22 is needed only to run the service or
+the tests outside containers.
 
 ```bash
-npm ci
-cp .env.example .env
+docker compose up --build
 ```
 
-Every variable is documented in [.env.example](.env.example); the values there are
-**local development only** examples. `.env` is git-ignored and must never be committed. The service
-reads all configuration through [src/config/config.ts](src/config/config.ts) and refuses to start
-when a value is missing or invalid; only `DATABASE_URL` is required.
+No configuration file is required. Compose uses the defaults in [compose.yaml](compose.yaml); to
+change them, copy [.env.example](.env.example) to `.env` (git-ignored) and edit it. **Every
+credential in these files is a development-only placeholder**, such as the database password
+`local-development-only`; never use them outside your machine.
 
-## Running with Docker Compose
+`docker compose up --build` starts:
+
+1. **PostgreSQL 16**, with its data in the named volume `postgres-data`.
+2. **The API**, which applies the migrations and the predefined plans before it listens.
+3. **The example client**, once the API reports healthy. It runs the complete example workflow
+   once and exits.
+
+The client succeeds when its output (prefixed `client-1`) ends with `Example workflow passed: …`
+and Compose reports that it exited with code 0. Any failed check names the step and exits with
+code 1. The database and the API keep running.
+
+| URL                                  | What                                       |
+| ------------------------------------ | ------------------------------------------ |
+| `http://127.0.0.1:8080`              | The API (loopback only; `API_HOST_PORT`)   |
+| `http://127.0.0.1:8080/health/live`  | Liveness                                   |
+| `http://127.0.0.1:8080/health/ready` | Readiness: database reachable and migrated |
+| `http://127.0.0.1:8080/docs`         | Interactive OpenAPI documentation          |
 
 ```bash
-docker compose up --build        # PostgreSQL + service + one run of the example client
-docker compose run --rm client   # run the example client again (exit code 0 = every step passed)
-docker compose down              # stop and remove containers; the database volume is kept
-docker compose down --volumes    # also delete the database volume (destroys local data)
+docker compose run --rm client   # run the example client again; its exit code is the result
+docker compose down              # stop and remove the containers; the database volume is kept
+docker compose down --volumes    # also delete the database volume and all its data
 ```
 
-`docker compose up --build` starts PostgreSQL, runs the migrations and predefined-plan setup before
-the service listens, and starts the example client once the service reports healthy. The client's
-output appears among the logs (prefixed `client-1`); it ends with `Example workflow passed` and
-the client container exits with code 0, or it names the failed step and exits with code 1. The
-database and the service keep running for your own requests. See [Example client](#example-client).
+## Documentation
 
-The service is published on `http://127.0.0.1:8080` and PostgreSQL on `127.0.0.1:5432` (loopback
-only; change with `API_HOST_PORT` and `POSTGRES_HOST_PORT`). The Compose credentials are
-development-only defaults that can be overridden through environment variables or `.env`.
+| Document                                                                     | Contents                                                           |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [docs/api.md](docs/api.md)                                                   | Every endpoint, with requests, responses, errors and a walkthrough |
+| [docs/architecture.md](docs/architecture.md)                                 | Components, data model, the consume transaction, concurrency       |
+| [docs/performance.md](docs/performance.md)                                   | Load-test method, environment, results and decisions               |
+| [docs/evidence/perf-full-38751721971/](docs/evidence/perf-full-38751721971/) | The preserved benchmark evidence                                   |
 
-## Running locally with npm
+## Product assumptions
 
-Start only the database, then run the service from source (reads `.env`):
+The specification leaves some behavior open. These are the choices, applied everywhere:
+
+1. **One metered resource, in whole units.** Units, limits and requests are JSON integers from 1
+   to 1,000,000,000; strings and decimals are rejected, never converted. The specification asks for
+   one resource throughout, and integers keep every total exact.
+2. **UTC calendar months.** Usage belongs to a month written `YYYY-MM` in UTC, so every caller and
+   every server agrees on the month regardless of time zone.
+3. **The month is fixed once, when processing starts.** For a new request the service reads its
+   clock once, before the transaction and before any lock wait; the decision, both counters and the
+   history record all use that month. One instant per decision means a decision is never split
+   across two months.
+4. **A request can commit just after midnight UTC and still count in the earlier month.** That
+   happens when it starts in the last moment of a month and waits for the account's counter lock
+   (at most `DB_LOCK_TIMEOUT_MS`, 2 seconds by default). Re-reading the clock under the lock would
+   instead make the month depend on contention.
+5. **Current-month usage shows the live plan.** It includes `monthlyAllowance`,
+   `maxUnitsPerRequest` and `remaining` from the plans assigned now, because that answers what a
+   user can still do.
+6. **Past months report `used` only.** Plans may have changed since, so today's limits say nothing
+   about that month's entitlement. The limits that applied to each request are recorded on its
+   decision in the history.
+7. **Every valid consume decision is HTTP 200.** A rejection is a successful evaluation, not a
+   client error: `accepted` is `false`, and `blockingRule` and `blockingLevel` name the first rule
+   that failed. HTTP errors mean the request could not be decided (`400`, `401`, `404`, `409`,
+   `503`), and a retry of a rejected request replays the same `200` body.
+8. **Request IDs are scoped to the account.** `(account, requestId)` is unique, so each caller picks
+   its own IDs, and accounts can neither collide with nor probe each other.
+9. **A reused request ID must carry the same request.** The same `userId` and `units` return the
+   original response byte for byte and count nothing; anything else is `409 IDEMPOTENCY_CONFLICT`,
+   so a retry can never turn into a different decision.
+10. **Unknown and foreign resources look the same.** A user or plan of another account gets exactly
+    the response of one that does not exist (`404 User not found`, `404 Plan not found`), so a key
+    never reveals another account's data. Users must be registered before they consume.
+11. **Predefined plans and defaults.** Starter (10,000 a month, 100 per request) and Pro (100,000,
+    1,000) for accounts; Basic (1,000, 20) and Premium (10,000, 100) for users. They are read-only.
+    New accounts start on Starter and new users on Basic, so a new account works at once.
+12. **Account and user plans apply together.** Four checks run in a fixed order: user per-request,
+    account per-request, user monthly, account monthly. The first failure is reported, so the
+    reason is deterministic. A user plan never raises the account's shared allowance.
+13. **No additional rules.** Each plan has exactly the two required rules (monthly allowance and
+    maximum per request). A reliable core was preferred to extra rule types.
+14. **API keys are shown once and stored only as a SHA-256 digest.** The key appears only in the
+    account-creation response. A database leak exposes no usable key; a lost key cannot be
+    recovered, and rotation is out of scope.
+
+## Account and user model
+
+- An **account** is a calling application. It has exactly one account-level plan, which defines the
+  allowance shared by all its users.
+- A **user** belongs to exactly one account and has exactly one user-level plan, which defines that
+  user's own allowance.
+- **Plans** are either predefined (visible to every account, read-only) or custom (owned by one
+  account and visible only to it). Each plan has a scope, `ACCOUNT` or `USER`, and can be assigned
+  only at that level.
+- **Many users can share one plan definition** and still have independent allowances: usage is
+  counted per user, never per plan.
+- **An accepted request counts twice, atomically:** in the user's monthly counter and in the
+  account's monthly counter, in one transaction. A rejection counts nothing. The account's usage is
+  therefore always the sum of its users' accepted usage.
+- **Plan changes** (updating a custom plan or switching plans) apply to requests that start after
+  they succeed. Usage already counted in the month is kept, and recorded decisions never change.
+
+## API
+
+All endpoints are documented with request and response examples in [docs/api.md](docs/api.md)
+and as OpenAPI at `GET /docs` (`GET /docs/json`). Every error has the shape
+`{"error": {"code": "...", "message": "..."}}`, and every protected endpoint answers a missing or
+invalid key with `401 UNAUTHORIZED`.
+
+| Method | Path                       | Key | Purpose                                         | Main statuses      |
+| ------ | -------------------------- | --- | ----------------------------------------------- | ------------------ |
+| POST   | `/v1/accounts`             | no  | Create an account; returns its API key once     | 201, 400           |
+| GET    | `/v1/account`              | yes | The authenticated account and its plan          | 200                |
+| PUT    | `/v1/account/plan`         | yes | Switch the account's plan                       | 200, 404, 409      |
+| GET    | `/v1/plans`                | yes | Predefined and own custom plans (`?scope=`)     | 200, 400           |
+| POST   | `/v1/plans`                | yes | Create a custom plan                            | 201, 400           |
+| PATCH  | `/v1/plans/{planId}`       | yes | Update an own custom plan                       | 200, 404, 409      |
+| POST   | `/v1/users`                | yes | Register a user (on Basic)                      | 201, 400           |
+| GET    | `/v1/users`                | yes | The account's users, paginated                  | 200, 400           |
+| GET    | `/v1/users/{userId}`       | yes | One user and its plan                           | 200, 404           |
+| PUT    | `/v1/users/{userId}/plan`  | yes | Switch a user's plan                            | 200, 404, 409      |
+| POST   | `/v1/consume`              | yes | Decide and record a request for units           | 200, 404, 409, 503 |
+| GET    | `/v1/usage`                | yes | The account's usage for a month (`?month=`)     | 200, 400           |
+| GET    | `/v1/users/{userId}/usage` | yes | One user's usage for a month                    | 200, 404           |
+| GET    | `/v1/usage/users`          | yes | Every user's usage for a month, paginated       | 200, 400           |
+| GET    | `/v1/history`              | yes | Decisions, newest first (`?userId=`, `?month=`) | 200, 400, 404      |
+| GET    | `/health/live`             | no  | Liveness                                        | 200                |
+| GET    | `/health/ready`            | no  | Readiness                                       | 200, 503           |
+| GET    | `/docs`, `/docs/json`      | no  | OpenAPI documentation                           | 200                |
+
+Every body-taking endpoint also answers `413` and `415`, and any endpoint can answer
+`500 INTERNAL_ERROR` without internal details. The core flow, with placeholders written `<...>`
+and example response values:
 
 ```bash
-docker compose up --detach postgres
-npm run db:migrate   # optional: the service also migrates on startup
-npm run dev
-```
+API=http://127.0.0.1:8080
+curl -s -X POST "$API/v1/accounts" -H "Content-Type: application/json" -d '{"name": "Acme"}'
+export UMQS_API_KEY='<apiKey from the response, shown only once>'
 
-| Command                    | Purpose                                                                 |
-| -------------------------- | ----------------------------------------------------------------------- |
-| `npm run dev`              | Run the service from source with auto-restart (loads `.env` if present) |
-| `npm run build`            | Compile `src/` to `dist/` and copy the SQL migrations                   |
-| `npm start`                | Run the compiled service (`dist/main.js`)                               |
-| `npm run db:migrate`       | Apply pending migrations and exit (same code as startup)                |
-| `npm test`                 | All unit and integration tests (needs PostgreSQL, see below)            |
-| `npm run test:unit`        | Unit tests only (no database needed)                                    |
-| `npm run test:integration` | Integration tests against PostgreSQL                                    |
-| `npm run test:coverage`    | All tests with V8 coverage and the enforced 80% thresholds              |
-| `npm run format:check`     | Verify Prettier formatting (`npm run format` applies it)                |
-| `npm run lint`             | ESLint (type-aware, security rules) with zero warnings allowed          |
-| `npm run typecheck`        | TypeScript type-check of source, tests and tooling config               |
-| `npm run check`            | All local quality gates: format, lint, type-check, tests, build         |
+curl -s -X POST "$API/v1/users" -H "X-API-Key: $UMQS_API_KEY" \
+  -H "Content-Type: application/json" -d '{"name": "Ada"}'
+export USER_ID='<id from the response>'
 
-## Database migrations
-
-Migrations are plain SQL files in [src/db/migrations](src/db/migrations), named `NNNN_name.sql`
-and applied in order. They are **forward-only and immutable once applied**: each applied file's
-SHA-256 checksum is stored in `schema_migrations`, and the service refuses to start if an applied
-migration was edited, removed or reordered. Change the schema by adding a new file.
-
-Each migration runs in its own transaction, and a PostgreSQL advisory lock ensures only one
-instance migrates at a time. The same runner is used by `npm run db:migrate` and by service
-startup; inside the container you can also run `docker compose run --rm api node dist/db/migrate-cli.js`.
-
-## Accounts and API keys
-
-### Create an account
-
-`POST /v1/accounts` is public. The name must be 1-100 characters on a single line, without control
-characters or leading or trailing whitespace; names do not need to be unique. Unknown fields are
-rejected.
-
-```bash
-curl -s -X POST http://127.0.0.1:8080/v1/accounts \
+curl -s -X POST "$API/v1/consume" -H "X-API-Key: $UMQS_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"name": "Acme"}'
+  -d "{\"userId\": \"$USER_ID\", \"units\": 10, \"requestId\": \"order-1001\"}"
+
+curl -s "$API/v1/usage" -H "X-API-Key: $UMQS_API_KEY"
+curl -s "$API/v1/history?userId=$USER_ID&limit=20" -H "X-API-Key: $UMQS_API_KEY"
 ```
 
-Response `201 Created` (values shortened):
-
-```json
-{
-  "id": "<account-id>",
-  "name": "Acme",
-  "createdAt": "2026-10-13T09:30:15.123Z",
-  "updatedAt": "2026-10-13T09:30:15.123Z",
-  "plan": {
-    "id": "a0000000-0000-4000-8000-000000000001",
-    "code": "starter",
-    "name": "Starter",
-    "scope": "ACCOUNT",
-    "monthlyAllowance": 10000,
-    "maxUnitsPerRequest": 100
-  },
-  "apiKey": "umqs_<43 characters>"
-}
-```
-
-- **The API key is shown only once.** Store it securely: the response is sent with
-  `Cache-Control: no-store`, and the service keeps only the SHA-256 digest of the key, so it can
-  never show the key again. Lost keys cannot be recovered; key rotation is out of scope.
-- **Every new account starts on the predefined Starter plan** (10,000 units per month, at most 100
-  per request).
-- Keys have the form `umqs_` followed by 43 base64url characters (32 random bytes).
-
-### Authenticate
-
-Protected endpoints require the key in the `X-API-Key` header, exactly once and unmodified. The
-example below reads it from an environment variable instead of pasting it into the command:
-
-```bash
-export UMQS_API_KEY='<your-api-key>'
-curl -s http://127.0.0.1:8080/v1/account -H "X-API-Key: $UMQS_API_KEY"
-```
-
-`GET /v1/account` returns the account that owns the key, with its assigned plan (the creation
-response without `apiKey`). A missing, repeated, malformed or unknown key always receives the same
-response, so callers cannot tell which check failed:
-
-```json
-{ "error": { "code": "UNAUTHORIZED", "message": "A valid API key is required" } }
-```
-
-### Error responses
-
-Every error uses the shape `{ "error": { "code": "...", "message": "..." } }`. Codes are stable and
-defined once in [src/shared/error-catalogue.ts](src/shared/error-catalogue.ts):
-
-| Code                                                                        | HTTP     | Meaning                                                |
-| --------------------------------------------------------------------------- | -------- | ------------------------------------------------------ |
-| `VALIDATION_ERROR`, `BAD_REQUEST`                                           | 400      | The request is invalid or could not be parsed          |
-| `UNAUTHORIZED`                                                              | 401      | A valid API key is required                            |
-| `NOT_FOUND`                                                                 | 404      | The route or resource does not exist                   |
-| `CONFLICT`, `IDEMPOTENCY_CONFLICT`, `PLAN_READ_ONLY`, `PLAN_SCOPE_MISMATCH` | 409      | The request conflicts with current state               |
-| `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`                               | 413, 415 | The body is too large or not JSON                      |
-| `BUSY_RETRY`, `SERVICE_UNAVAILABLE`                                         | 503      | Retry later (`BUSY_RETRY`) or the service is not ready |
-| `INTERNAL_ERROR`                                                            | 500      | Unexpected failure; no internal details are returned   |
-
-## Plans and users
-
-All endpoints below require `X-API-Key` and act only on the authenticated account. An unknown ID
-and an ID that belongs to another account always receive the same response, so callers cannot
-discover other accounts' resources.
-
-| Endpoint                      | Purpose                                                                   |
-| ----------------------------- | ------------------------------------------------------------------------- |
-| `GET /v1/plans`               | Predefined plans, then the account's own custom plans (`?scope=` filters) |
-| `POST /v1/plans`              | Create a custom plan owned by the account                                 |
-| `PATCH /v1/plans/{planId}`    | Change the name or limits of one of the account's custom plans            |
-| `POST /v1/users`              | Register a user; it starts on the predefined Basic plan                   |
-| `GET /v1/users`               | The account's users with their plans, oldest first, paginated             |
-| `GET /v1/users/{userId}`      | One user of the account with its plan                                     |
-| `PUT /v1/users/{userId}/plan` | Switch a user's plan                                                      |
-| `PUT /v1/account/plan`        | Switch the account's plan                                                 |
-
-### Plans
-
-Every plan has a scope: `ACCOUNT` plans apply to the account's shared allowance and `USER` plans to
-each user's own allowance. The four predefined plans are visible to every account and read-only:
-
-| Code      | Scope   | Monthly allowance | Max units per request |
-| --------- | ------- | ----------------- | --------------------- |
-| `starter` | ACCOUNT | 10,000            | 100                   |
-| `pro`     | ACCOUNT | 100,000           | 1,000                 |
-| `basic`   | USER    | 1,000             | 20                    |
-| `premium` | USER    | 10,000            | 100                   |
-
-`GET /v1/plans?scope=ACCOUNT` or `?scope=USER` (exact upper case) narrows the list. Custom plans
-have `"code": null` and are visible only to the account that created them:
-
-```bash
-curl -s -X POST http://127.0.0.1:8080/v1/plans \
-  -H "X-API-Key: $UMQS_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Team", "scope": "ACCOUNT", "monthlyAllowance": 50000, "maxUnitsPerRequest": 500}'
-```
-
-- Names follow the account-name rules; limits are JSON integers from 1 to 1,000,000,000 (strings
-  such as `"500"` are rejected, never converted).
-- `PATCH /v1/plans/{planId}` accepts any non-empty subset of `name`, `monthlyAllowance` and
-  `maxUnitsPerRequest`; the scope cannot change. A predefined plan returns
-  `409 PLAN_READ_ONLY`. Accounts and users already on the plan see the new limits immediately.
-
-### Users
-
-`POST /v1/users` with `{"name": "..."}` registers a user under the authenticated account on the
-predefined Basic plan; the plan is assigned in the same statement that creates the user. User names
-follow the account-name rules and need not be unique. The response (also used by `GET` and the
-plan switch) is:
-
-```json
-{
-  "id": "<user-id>",
-  "name": "Ada",
-  "createdAt": "2026-10-13T09:30:15.123Z",
-  "updatedAt": "2026-10-13T09:30:15.123Z",
-  "plan": {
-    "id": "b0000000-0000-4000-8000-000000000001",
-    "code": "basic",
-    "name": "Basic",
-    "scope": "USER",
-    "monthlyAllowance": 1000,
-    "maxUnitsPerRequest": 20
-  }
-}
-```
-
-`GET /v1/users` returns `{"users": [...], "nextCursor": ...}` in creation order, one page at a
-time (see [Pagination](#pagination)). An unknown user and another
-account's user both return `404 NOT_FOUND` with the message `User not found`.
-
-### Switching plans
-
-`PUT /v1/account/plan` and `PUT /v1/users/{userId}/plan` take `{"planId": "<uuid>"}` and return the
-updated account or user. The plan must be a predefined plan or one of the account's own custom
-plans, of the matching scope. Checks apply in this order:
-
-1. Unknown or foreign user: `404 NOT_FOUND`, `User not found`.
-2. Unknown or foreign plan: `404 NOT_FOUND`, `Plan not found`.
-3. A plan of the other scope (for example `premium` for the account): `409 PLAN_SCOPE_MISMATCH`.
-
-A failed switch changes nothing. Assigning the plan that is already assigned succeeds and returns
-the unchanged resource, including its previous `updatedAt`; a real change sets `updatedAt`.
-
-## Consuming units
-
-`POST /v1/consume` (requires `X-API-Key`) asks whether a user of the authenticated account may
-consume units now, and counts them if so.
-
-```bash
-curl -s -X POST http://127.0.0.1:8080/v1/consume \
-  -H "X-API-Key: $UMQS_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"userId": "<user-id>", "units": 10, "requestId": "doc-2026-10-13-0001"}'
-```
-
-| Field       | Rule                                                                                  |
-| ----------- | ------------------------------------------------------------------------------------- |
-| `userId`    | UUID of a user of the authenticated account                                           |
-| `units`     | JSON integer from 1 to 1,000,000,000 (`"10"`, `10.5`, `0` and negatives are rejected) |
-| `requestId` | 1-128 characters from `A-Z a-z 0-9 . _ : -`, chosen by the caller; unique per account |
-
-Unknown fields are rejected. **Every decision is `200 OK`**, whether accepted or not:
-
-```json
-{
-  "requestId": "doc-2026-10-13-0001",
-  "userId": "<user-id>",
-  "units": 10,
-  "accepted": false,
-  "blockingRule": "MONTHLY_ALLOWANCE",
-  "blockingLevel": "ACCOUNT",
-  "month": "2026-10",
-  "processedAt": "2026-10-13T09:30:15.123Z",
-  "account": {
-    "planId": "a0000000-0000-4000-8000-000000000001",
-    "planName": "Starter",
-    "monthlyAllowance": 10000,
-    "maxUnitsPerRequest": 100,
-    "used": 9995,
-    "remaining": 5
-  },
-  "user": {
-    "planId": "b0000000-0000-4000-8000-000000000001",
-    "planName": "Basic",
-    "monthlyAllowance": 1000,
-    "maxUnitsPerRequest": 20,
-    "used": 120,
-    "remaining": 880
-  }
-}
-```
-
-- **Rules.** A request is accepted only when all four checks pass. They are evaluated in this fixed
-  order and the first failure is reported as `blockingRule` and `blockingLevel`:
-  1. user `MAX_UNITS_PER_REQUEST`
-  2. account `MAX_UNITS_PER_REQUEST`
-  3. user `MONTHLY_ALLOWANCE`
-  4. account `MONTHLY_ALLOWANCE`
-
-  Exactly reaching a limit is allowed. An accepted request adds its units to both the user's and
-  the account's usage for the month. A rejection counts nothing. Both `blockingRule` and
-  `blockingLevel` are `null` when accepted.
-
-- **Usage values.** `used` is the month's usage after this decision. `remaining` is
-  `monthlyAllowance - used`, shown as `0` (never negative) when an allowance was reduced below
-  existing usage; further requests at that level are rejected until allowance is available again.
-- **Months.** Usage belongs to the UTC calendar month in which the request is processed (`month`,
-  `YYYY-MM`). Each month starts at zero; previous months keep their totals.
-- **Plan changes.** Each decision records the plan IDs, names and all four limits it used. Plan
-  updates and switches apply to requests that start after they succeed, and never change a
-  recorded decision. A request in flight uses either the complete old state or the complete new
-  state, never a mix.
-
-### Retries and idempotency
-
-The `requestId` makes retries safe. The decision for each `(account, requestId)` is stored once.
-
-- Retrying with the **same `userId` and `units`** returns the original response, byte for byte.
-  This holds for accepted and rejected decisions alike, and even after plan changes or the start
-  of a new month. Nothing is counted again.
-- Reusing a `requestId` with a **different `userId` or `units`** returns `409 IDEMPOTENCY_CONFLICT`
-  and changes nothing.
-- Request IDs are scoped to the account: another account may use the same value independently.
-
-| Status                     | Meaning                                                                                                      |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `200`                      | A decision (accepted or rejected)                                                                            |
-| `400 VALIDATION_ERROR`     | Malformed body; nothing recorded                                                                             |
-| `401 UNAUTHORIZED`         | Missing or invalid API key                                                                                   |
-| `404 NOT_FOUND`            | `User not found`: unknown, or a user of another account (same response); nothing recorded                    |
-| `409 IDEMPOTENCY_CONFLICT` | `requestId` already used with a different payload                                                            |
-| `503 BUSY_RETRY`           | Too much contention on this account; nothing recorded. Retry the same request after `Retry-After` (1 second) |
-
-After a `500` or a network failure the client cannot know whether a decision was recorded; retrying
-with the same `requestId` is always safe and returns the decision if there is one.
-
-**Configuration:** `DB_LOCK_TIMEOUT_MS` (default 2000) bounds how long a request waits for the
-account's usage counter before answering `503 BUSY_RETRY`.
-
-## Usage
-
-All usage endpoints require `X-API-Key` and report one UTC calendar month. `month` is `YYYY-MM`
-and defaults to the current UTC month; a future month is `400`. Usage counts accepted requests
-only, and a month without usage reports `0` (never `404`).
-
-| Endpoint                                    | Returns                                                     |
-| ------------------------------------------- | ----------------------------------------------------------- |
-| `GET /v1/usage?month=`                      | The account's shared usage                                  |
-| `GET /v1/users/{userId}/usage?month=`       | One user's usage (unknown and other accounts' users: `404`) |
-| `GET /v1/usage/users?month=&limit=&cursor=` | Every user's usage, newest user first, paginated            |
-
-The **current month** includes the limits of the plan assigned now:
-
-```json
-{
-  "month": "2026-10",
-  "used": 120,
-  "monthlyAllowance": 1000,
-  "maxUnitsPerRequest": 20,
-  "remaining": 880
-}
-```
-
-A **past month** reports `{"month": "2026-09", "used": 340}` only. Today's plan says nothing
-about the limits that applied then, so no remaining value is invented; the limits that applied to
-each request are recorded on its decision in `GET /v1/history`.
-
-- `remaining = max(0, monthlyAllowance - used)`: when an allowance was reduced below usage it
-  shows `0`, and further requests at that level are rejected until allowance is available again.
-- Switching plans keeps the month's usage; it never grants a fresh allowance.
-- The account's `used` is the sum of its users' accepted usage.
-
-`GET /v1/usage/users` returns `{"month", "currentMonth", "users": [...], "nextCursor"}`. With
-`currentMonth: true` each user has `userId`, `name`, `planId`, `planName`, `used`,
-`monthlyAllowance`, `maxUnitsPerRequest` and `remaining`; with `currentMonth: false` (a past
-month) each user has `userId`, `name` and `used`. Every user is listed, with `used: 0` when it has
-no usage in that month.
-
-## Decision history
-
-`GET /v1/history?userId=&month=&limit=&cursor=` (requires `X-API-Key`) lists the account's
-consume decisions, newest first:
-
-```json
-{
-  "userId": null,
-  "month": "2026-10",
-  "decisions": [
-    { "requestId": "doc-1", "accepted": true, "...": "exactly the POST /v1/consume body" }
-  ],
-  "nextCursor": "eyJ2IjoxLCJrIjoiaGlzdG9yeSIs..."
-}
-```
-
-- Each decision is **exactly the body `POST /v1/consume` returned**, rebuilt from the stored
-  record: plan IDs, names and all four limits as they were at that moment, with `used` and
-  `remaining` after that decision. Later plan updates or switches never change it.
-- Optional filters: `userId` (a user of the account; an unknown user and another account's user
-  both get `404 User not found`) and `month` (`YYYY-MM`, UTC; a future month is `400`). The
-  response echoes the filters in effect (`null` when not filtered).
-
-## Pagination
-
-`GET /v1/users`, `GET /v1/usage/users` and `GET /v1/history` return one page at a time:
-
-- `limit`: an integer from 1 to 100 written plainly (no sign, decimal point, exponent, spaces or
-  leading zeros); default 20.
-- `nextCursor`: pass it as `cursor` to get the next page; it is `null` on the last page. Pages are
-  never addressed by offset.
-- A continuation request may send only `cursor` (and optionally a different `limit`). The cursor
-  carries the traversal's filters (`month`; `userId` for history): a request may repeat them
-  exactly but not change them.
-- Every unusable cursor gets the same response:
-  `400 {"error":{"code":"VALIDATION_ERROR","message":"Invalid cursor"}}`. That includes malformed
-  values, a cursor from another endpoint, changed filters, an expired cursor (below) and a cursor
-  pointing at a row that is not visible to the caller.
-
-| Endpoint              | Order                 | Notes                                                     |
-| --------------------- | --------------------- | --------------------------------------------------------- |
-| `GET /v1/users`       | Oldest user first     | Users created during a traversal appear on later pages    |
-| `GET /v1/usage/users` | Newest user first     | A current-month traversal expires when the UTC month ends |
-| `GET /v1/history`     | Newest decision first | New decisions appear only in a new traversal              |
-
-**Cursor format.** A cursor is opaque to clients but **not secret and not tamper-proof**: it is
-unpadded base64url of a small JSON object (version, endpoint, the UUID of the last row returned,
-and the bound filters). It is not signed or encrypted. Authorization never comes from the cursor:
-every lookup and page query is restricted to the authenticated account in SQL, so a modified
-cursor can at most move the caller within its own data, and a cursor naming another account's row
-is simply invalid. Cursors never contain API keys, hashes, SQL or internal sequence numbers.
-
-**`GET /v1/users` is now paginated.** Until Phase 5 it returned every user in one response. It
-now returns `{"users": [...], "nextCursor": ...}` with at most 20 users by default. An account with
-up to 20 users receives the same complete list as before, plus `nextCursor: null`. This is a
-deliberate pre-release contract change.
-
-### Known limitations
-
-| Limitation                                     | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| No duplicates; no gaps only for committed data | Pages never repeat a row, and a traversal over data that does not change returns every row once. A row whose position was allocated before a page boundary but that **commits after** that page was read is missed by that traversal (a new traversal includes it). For users this window is a concurrent user creation. For decisions it exists only for two requests of one account straddling a UTC month boundary: within one month the account's usage lock makes decisions commit in order. Both cases are reproduced by tests. |
-| Current-month cursor expiry                    | A `GET /v1/usage/users` traversal of the current month becomes invalid when the UTC month changes, so its pages never switch between the current and past-month forms. Restart with `month=<that month>` to page through it as a past month.                                                                                                                                                                                                                                                                                          |
-| Usage lists are not a snapshot                 | Each page of `GET /v1/usage/users` reads usage and the live plan when it is served, so values on different pages can reflect different moments.                                                                                                                                                                                                                                                                                                                                                                                       |
-| History filtered by both user and month        | Served by the existing `(account_id, user_id, seq)` or `(account_id, month, seq)` index plus a filter. For a user with a very large history asking about an old month, the first page scans that user's newer decisions. A combined index is deferred until load tests show it is needed (see the architecture notes).                                                                                                                                                                                                                |
-
-## Health checks and API documentation
-
-| Endpoint            | Meaning                                                                                           |
-| ------------------- | ------------------------------------------------------------------------------------------------- |
-| `GET /health/live`  | `200 {"status":"ok"}` while the process runs; never touches the database                          |
-| `GET /health/ready` | `200 {"status":"ready"}` only when PostgreSQL is reachable and every shipped migration is applied |
-| `GET /docs`         | Interactive OpenAPI documentation (`GET /docs/json` for the raw document)                         |
-
-When not ready, `/health/ready` returns `503` with the standard error body, for example:
-
-```json
-{ "error": { "code": "SERVICE_UNAVAILABLE", "message": "The database is not reachable" } }
-```
-
-The Docker image's health check calls `/health/ready`.
+The consume response is a decision such as `"accepted": true` with the user's and the account's
+`used` and `remaining` units. Plan creation, updates and switches, both kinds of rejection,
+pagination with cursors and every error are shown step by step in the
+[API walkthrough](docs/api.md#walkthrough-every-business-operation).
 
 ## Example client
 
@@ -573,15 +281,125 @@ Every request has a 10 second deadline, enforced with `AbortController`.
   prefix, request headers, the service's error message, or any other response content.
 - Every printed line also passes through a filter that replaces anything key-shaped.
 
+## Main design decisions
+
+Details and the reasoning behind each are in [docs/architecture.md](docs/architecture.md).
+
+- **PostgreSQL is the only source of truth.** Accounts, users, plans, assignments, monthly counters
+  and every decision live in one database. No cache or in-process state can disagree with it.
+- **One transaction per decision, with a fixed lock order.** A new consume reads both plans in one
+  statement, then locks the account's monthly counter row and then the user's, evaluates the four
+  rules, updates both counters only when accepted and inserts the decision, all in one
+  `READ COMMITTED` transaction. The fixed order rules out deadlocks; waiting is bounded by a lock
+  timeout that answers `503 BUSY_RETRY`.
+- **Three layers of idempotency.** A fast lookup answers retries without a transaction, a re-check
+  under the account lock catches a concurrent duplicate, and the unique `(account_id, request_id)`
+  constraint is the backstop for the rare case the lock cannot cover (duplicates straddling a month
+  boundary).
+- **Account-scoped SQL.** The account always comes from the API key, and every query is
+  restricted to it; composite foreign keys keep users and counters inside their account.
+- **Hashed API keys:** only a SHA-256 digest is stored, and the logger redacts the `X-API-Key`
+  header and connection strings.
+- **UTC month keys:** counters are keyed by the first day of the UTC month.
+- **Immutable decisions:** each decision stores the plan IDs, names and all four limits it was
+  decided with, and the database refuses updates and deletes, so history and replays never change.
+- **Keyset pagination with filter-bound cursors:** pages follow an internal sequence, and the
+  cursor fixes the traversal's filters, so pages never repeat rows or silently change filters.
+- **Safe startup and shutdown:** migrations are checksummed and serialized by an advisory lock and
+  run before the service listens; readiness requires every migration; shutdown drains requests
+  within a deadline.
+- **Non-root containers:** the API and the example client run as the unprivileged `node` user, and
+  the client image contains only the compiled client.
+- **No speculative index.** A combined history index was rejected by measurement: the heavy-user
+  history page took a median p95 of 2.359 ms with 4 rows discarded, far below the decision
+  thresholds (see [Performance](#performance)).
+
+## Performance
+
+The full benchmark ran on GitHub Actions
+([run 38751721971](https://github.com/Khaledbaniodeh/usage-metering-quota-service/actions/runs/38751721971),
+commit `d0cc2b0`; the service code is unchanged since). The environment was a 4-vCPU AMD EPYC 7763
+runner, with PostgreSQL limited to 2 CPUs and 2 GiB and the API to 1 CPU and 1 GiB. Full method,
+results and evidence: [docs/performance.md](docs/performance.md).
+
+- **Dataset:** 1,498,000 stored decisions; the heavy user owns 1,200,000 of them.
+- **History:** the first page of the heavy user's oldest month had a median p95 of **2.359 ms** at
+  20 requests per second. EXPLAIN shows a backward scan of the existing `(account_id, month, seq)`
+  index, with no sort and 4 rows removed by the filter. **No new index is justified** under the
+  pre-registered rule (p95 above 50 ms, or more than 2,000 rows removed).
+- **Consume:** median p95 **5.999 ms** for 50 accounts × 20 users at 50 requests per second, and
+  **6.800 ms** for one account with 200 users at 20 per second, with no dropped requests, no
+  `BUSY_RETRY` and every invariant intact.
+- **Whole service:** 200 requests per second spread over 100 accounts ran at p95 6.466 ms.
+- **One busy account:** about **158 requests per second** were completed, because an account's
+  decisions run one at a time on its counter lock. Above that, requests queued; none failed.
+
+The specification sets no throughput or latency target, so these are measurements of one
+environment, not guarantees.
+
+## Development
+
+### Running locally with npm
+
+Requires Node.js 22 (see [.nvmrc](.nvmrc); minimum `22.13.0`). Install the dependencies,
+copy the example configuration, start only the database and run the service from source:
+
+```bash
+npm ci
+cp .env.example .env
+```
+
+Every variable is documented in [.env.example](.env.example); the values there are
+**local development only** examples. `.env` is git-ignored and must never be committed. The service
+reads all configuration through [src/config/config.ts](src/config/config.ts) and refuses to start
+when a value is missing or invalid; only `DATABASE_URL` is required.
+
+```bash
+docker compose up --detach postgres
+npm run db:migrate   # optional: the service also migrates on startup
+npm run dev
+```
+
+| Command                    | Purpose                                                                 |
+| -------------------------- | ----------------------------------------------------------------------- |
+| `npm run dev`              | Run the service from source with auto-restart (loads `.env` if present) |
+| `npm run build`            | Compile `src/` to `dist/` and copy the SQL migrations                   |
+| `npm start`                | Run the compiled service (`dist/main.js`)                               |
+| `npm run db:migrate`       | Apply pending migrations and exit (same code as startup)                |
+| `npm test`                 | All unit and integration tests (needs PostgreSQL, see below)            |
+| `npm run test:unit`        | Unit tests only (no database needed)                                    |
+| `npm run test:integration` | Integration tests against PostgreSQL                                    |
+| `npm run test:coverage`    | All tests with V8 coverage and the enforced 80% thresholds              |
+| `npm run test:client`      | The example client's unit tests                                         |
+| `npm run test:load`        | The load-test tooling's unit tests                                      |
+| `npm run test:e2e`         | The end-to-end check of one example-client run (needs a running stack)  |
+| `npm run client:example`   | Run the example client from the host against `API_BASE_URL`             |
+| `npm run build:client`     | Compile the example client to `dist/client/` (used by its image)        |
+| `npm run format:check`     | Verify Prettier formatting (`npm run format` applies it)                |
+| `npm run lint`             | ESLint (type-aware, security rules) with zero warnings allowed          |
+| `npm run typecheck`        | TypeScript type-check of source, tests and tooling config               |
+| `npm run check`            | All local quality gates: format, lint, type-check, tests, build         |
+
+### Database migrations
+
+Migrations are plain SQL files in [src/db/migrations](src/db/migrations), named `NNNN_name.sql`
+and applied in order. They are **forward-only and immutable once applied**: each applied file's
+SHA-256 checksum is stored in `schema_migrations`, and the service refuses to start if an applied
+migration was edited, removed or reordered. Change the schema by adding a new file.
+
+Each migration runs in its own transaction, and a PostgreSQL advisory lock ensures only one
+instance migrates at a time. The same runner is used by `npm run db:migrate` and by service
+startup; inside the container you can also run `docker compose run --rm api node dist/db/migrate-cli.js`.
+
 ## Running the tests
 
-| Kind           | Command                                       | Needs                         | What it proves                                                                                       |
-| -------------- | --------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Unit           | `npm run test:unit`                           | Nothing                       | Pure rules, configuration, the HTTP contract with stubs, and the example client                      |
-| Client unit    | `npm run test:client`                         | Nothing                       | The example client's own behavior (subset of the unit tests)                                         |
-| Integration    | `npm run test:integration`                    | PostgreSQL (`_test` database) | Repositories, transactions, concurrency, isolation, pagination, API over real SQL                    |
-| End to end     | `npm run test:e2e`                            | A running stack               | One complete example-client run shows every required behavior, exits 0 and prints no key             |
-| Load (Phase 7) | `perf-smoke` / `perf-full` pull-request label | GitHub Actions                | Throughput, latency and invariants under load; results in [docs/performance.md](docs/performance.md) |
+| Kind        | Command                                       | Needs                         | What it proves                                                                                       |
+| ----------- | --------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Unit        | `npm run test:unit`                           | Nothing                       | Pure rules, configuration, the HTTP contract with stubs, and the example client                      |
+| Client unit | `npm run test:client`                         | Nothing                       | The example client's own behavior (subset of the unit tests)                                         |
+| Integration | `npm run test:integration`                    | PostgreSQL (`_test` database) | Repositories, transactions, concurrency, isolation, pagination, API over real SQL                    |
+| End to end  | `npm run test:e2e`                            | A running stack               | One complete example-client run shows every required behavior, exits 0 and prints no key             |
+| Load        | `perf-smoke` / `perf-full` pull-request label | GitHub Actions                | Throughput, latency and invariants under load; results in [docs/performance.md](docs/performance.md) |
 
 `npm test` runs the unit and integration tests; `npm run check` adds formatting, lint, type-check
 and the build. The end-to-end test is a black-box check through the public API only. It
@@ -596,7 +414,7 @@ npm test
 ```
 
 If port 5432 is already taken on your machine, start the database on another port and point the
-tests at it, for example `POSTGRES_HOST_PORT=15432` with
+tests at it, for example `POSTGRES_HOST_PORT=15432` with the development-only Compose credentials:
 `TEST_DATABASE_URL=postgres://usage_metering:local-development-only@127.0.0.1:15432/usage_metering_test`.
 
 Test database safety:
@@ -641,3 +459,47 @@ tests with coverage thresholds against a PostgreSQL 16 service container, and th
 10. Stop the API and require exit code 0 and a completed graceful shutdown.
 11. On failure, print redacted Compose logs. Always run `docker compose down --volumes`. No
     artifacts are uploaded.
+
+### Performance workflow
+
+[.github/workflows/performance.yml](.github/workflows/performance.yml) runs the load tests only on
+request: when a pull request gets the label `perf-smoke` (the pipeline at a small scale) or
+`perf-full` (the measured protocol), or by manual dispatch once the workflow is on the default
+branch. Ordinary pushes never start it. Requirements, commands and the evidence it uploads are
+described in [docs/performance.md](docs/performance.md#reproducing-and-verifying).
+
+## Known limitations
+
+These are deliberate boundaries of the current implementation, not defects:
+
+- **Per-account serialization.** Every decision of an account locks that account's monthly
+  counter, so one account's decisions run one at a time. In the benchmark environment a single
+  busy account completed about 158 requests per second; that figure describes that environment,
+  not a limit of every deployment.
+- **No service-level targets.** The specification defines none; the performance results are
+  measurements, not commitments.
+- **An unexplained measurement.** In the single-account stress runs one duplicate-request lookup
+  took about 2.2 ms per call instead of under 0.3 ms. Its query plan was not captured, so no cause
+  or optimization is claimed ([details](docs/performance.md#contention-diagnostics-and-the-per-account-capacity)).
+- **Pagination of changing data.** Pages never repeat a row, and a traversal over unchanged data
+  returns every row once. A row that commits after a traversal passed its position is missed by
+  that traversal and included by the next one (a concurrent user creation, or two decisions of one
+  account straddling a UTC month boundary).
+- **Current-month usage cursors expire** when the UTC month changes; restart with `month=` to page
+  through it as a past month.
+- **Usage lists are not a snapshot.** Each page of `GET /v1/usage/users` reflects the moment it is
+  served.
+- **Cursors are opaque and filter-bound but not signed or encrypted.** They grant nothing: every
+  lookup is restricted to the authenticated account in SQL.
+- **No retention or deletion.** Decisions are kept indefinitely, and accounts, users, plans and keys
+  cannot be deleted; there is no key rotation.
+- **One database, no other coordination.** Several service instances can share one PostgreSQL
+  (counters, uniqueness and migrations are coordinated in the database), but nothing else is
+  distributed, and only one instance was load-tested.
+- **Connection-pool exhaustion answers `500`.** A request that cannot get a database connection
+  within `DB_CONNECTION_TIMEOUT_MS` receives the generic error rather than `503 BUSY_RETRY`. This
+  was not reached in any benchmark run.
+- **No metrics endpoint.** Operation is observed through structured JSON logs; there is no
+  Prometheus-style endpoint, which the specification does not require.
+- **The example client creates demonstration data.** Every run adds a new account with users and
+  decisions, and nothing removes them except `docker compose down --volumes`.
