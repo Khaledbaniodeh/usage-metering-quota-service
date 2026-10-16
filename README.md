@@ -8,7 +8,8 @@ it.
 ## Status
 
 All behavior required by the project specification is implemented and checked by automated tests
-and CI:
+and CI; [docs/requirements-traceability.md](docs/requirements-traceability.md) maps each requirement
+to its implementation and evidence:
 
 - **Accounts and API keys:** account creation with a one-time key, `X-API-Key` authentication and
   strict tenant isolation.
@@ -74,6 +75,7 @@ docker compose down --volumes    # also delete the database volume and all its d
 | [docs/api.md](docs/api.md)                                                   | Every endpoint, with requests, responses, errors and a walkthrough |
 | [docs/architecture.md](docs/architecture.md)                                 | Components, data model, the consume transaction, concurrency       |
 | [docs/performance.md](docs/performance.md)                                   | Load-test method, environment, results and decisions               |
+| [docs/requirements-traceability.md](docs/requirements-traceability.md)       | Each requirement with its implementation, tests and evidence       |
 | [docs/evidence/perf-full-38751721971/](docs/evidence/perf-full-38751721971/) | The preserved benchmark evidence                                   |
 
 ## Product assumptions

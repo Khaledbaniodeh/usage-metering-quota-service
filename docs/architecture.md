@@ -2,7 +2,8 @@
 
 This document describes the architecture of the Usage Metering and Quota Service as implemented.
 The [README](../README.md) is the entry point, [api.md](api.md) documents the HTTP contract and
-[performance.md](performance.md) the load tests.
+[performance.md](performance.md) the load tests, and
+[requirements-traceability.md](requirements-traceability.md) maps every requirement to its evidence.
 
 ## Purpose
 
