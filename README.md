@@ -580,7 +580,7 @@ Every request has a 10 second deadline, enforced with `AbortController`.
 | Unit           | `npm run test:unit`                           | Nothing                       | Pure rules, configuration, the HTTP contract with stubs, and the example client                      |
 | Client unit    | `npm run test:client`                         | Nothing                       | The example client's own behavior (subset of the unit tests)                                         |
 | Integration    | `npm run test:integration`                    | PostgreSQL (`_test` database) | Repositories, transactions, concurrency, isolation, pagination, API over real SQL                    |
-| End to end     | `npm run test:e2e`                            | A running stack               | The real client executable passes the whole workflow and prints no key                               |
+| End to end     | `npm run test:e2e`                            | A running stack               | One complete example-client run shows every required behavior, exits 0 and prints no key             |
 | Load (Phase 7) | `perf-smoke` / `perf-full` pull-request label | GitHub Actions                | Throughput, latency and invariants under load; results in [docs/performance.md](docs/performance.md) |
 
 `npm test` runs the unit and integration tests; `npm run check` adds formatting, lint, type-check
@@ -616,15 +616,21 @@ tests with coverage thresholds against a PostgreSQL 16 service container, and th
 
 **Container image and Compose stack:**
 
-1. `npm ci` with Node from `.nvmrc`, used only for the example client.
+1. `npm ci` with Node from `.nvmrc`, used only to check the client's output on the host.
 2. Build the production image.
-3. `docker compose down --volumes`, then `docker compose up --build --wait`, so the stack starts
-   from a fresh database volume.
-4. Check both health endpoints and that the service does not run as root.
-5. Run `npm run test:e2e` against `http://127.0.0.1:8080`. The output is saved to a file and only
-   a redacted copy is printed.
-6. Fail if the API logs or the client output contain anything API-key-shaped, the database
+3. `docker compose down --volumes`, then `docker compose up --build`, so PostgreSQL, the service and
+   the example client start from a fresh database volume; then wait until PostgreSQL and the
+   service are healthy.
+4. Wait for the Compose `client` container to exit (at most 300 seconds) and require exit code 0.
+   Its log is saved to a file and only a redacted copy is printed.
+5. Run `npm run test:e2e` on that log: every step must appear in order, with the evidence of each
+   required behavior (different plans, both rejection levels, the plan update, exact totals and
+   remaining allowances, the complete history).
+6. Check both health endpoints and that the service does not run as root.
+7. Check that the client image runs as a non-root user, holds only the compiled client (no service
+   source, no `node_modules`), and that the client container received no database setting.
+8. Fail if the API logs or the client output contain anything API-key-shaped, the database
    password, or (API logs) an error-level entry.
-7. Stop the API and require exit code 0 and a completed graceful shutdown.
-8. On failure, print redacted Compose logs. Always run `docker compose down --volumes`. No
-   artifacts are uploaded.
+9. Stop the API and require exit code 0 and a completed graceful shutdown.
+10. On failure, print redacted Compose logs. Always run `docker compose down --volumes`. No
+    artifacts are uploaded.
