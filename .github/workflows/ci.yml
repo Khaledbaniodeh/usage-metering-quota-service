@@ -76,7 +76,8 @@ jobs:
         with:
           persist-credentials: false
 
-      # Node runs only the example client from the host; the service itself runs in the image.
+      # Node runs only the end-to-end check of the client's output on the host; the service and the
+      # example client run in their images.
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
@@ -89,10 +90,61 @@ jobs:
       - name: Build the production image
         run: docker build --target runtime --tag usage-metering-quota-service:ci .
 
-      - name: Start the Compose stack from a fresh database volume and wait until every service is healthy
+      # Exactly what a reviewer runs: PostgreSQL, the service and the one-shot example client, which
+      # Compose starts only once the service reports healthy. The health check afterwards only reads
+      # container state: a second `docker compose up` could recreate the service under the client.
+      - name: Start the complete Compose stack from a fresh database volume
+        shell: bash
         run: |
           docker compose down --volumes --remove-orphans
-          docker compose up --build --detach --wait --wait-timeout 180
+          timeout 600 docker compose up --build --detach
+          for service in postgres api; do
+            health="$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps --quiet "${service}")")"
+            echo "${service}: ${health}"
+            if [ "${health}" != "healthy" ]; then
+              echo "::error::${service} is not healthy"
+              exit 1
+            fi
+          done
+
+      # The client's output goes to a file first; the log shows only a redacted copy, and the raw
+      # file is checked and scanned in the next steps.
+      - name: Wait for the Compose example client to finish and require exit code 0
+        shell: bash
+        run: |
+          cid="$(docker compose ps --all --quiet client)"
+          if [ -z "${cid}" ]; then
+            echo "::error::Compose did not create the example client container"
+            exit 1
+          fi
+          set +e
+          status="$(timeout 300 docker wait "${cid}")"
+          wait_status=$?
+          set -e
+          docker compose logs --no-color --no-log-prefix client > client.log 2>&1
+          sed -E 's/umqs_[A-Za-z0-9_-]+/umqs_[REDACTED]/g' client.log
+          if [ "${wait_status}" != "0" ]; then
+            echo "::error::the example client did not finish within 300 seconds"
+            exit 1
+          fi
+          echo "CLIENT_EXIT_CODE=${status}" >> "${GITHUB_ENV}"
+          echo "example client exit code: ${status}"
+          if [ "${status}" != "0" ]; then
+            echo "::error::the example client exited with code ${status}"
+            exit 1
+          fi
+
+      - name: Check the example client's output for every required behavior
+        shell: bash
+        env:
+          CLIENT_LOG: client.log
+        run: |
+          set +e
+          timeout 120 npm run test:e2e > e2e.log 2>&1
+          status=$?
+          set -e
+          sed -E 's/umqs_[A-Za-z0-9_-]+/umqs_[REDACTED]/g' e2e.log
+          exit "${status}"
 
       - name: Verify both health endpoints from the host
         run: |
@@ -110,26 +162,119 @@ jobs:
             exit 1
           fi
 
-      # The client output goes to a file first; the log shows only a redacted copy, and the raw
-      # file is scanned for keys in the next step.
-      - name: Run the example client end to end against the stack
+      - name: Verify the example client runs as a non-root user with only its own files and no database settings
         shell: bash
-        env:
-          API_BASE_URL: http://127.0.0.1:8080
         run: |
-          set +e
-          timeout 300 npm run test:e2e > e2e.log 2>&1
-          status=$?
-          set -e
-          sed -E 's/umqs_[A-Za-z0-9_-]+/umqs_[REDACTED]/g' e2e.log
-          exit "${status}"
+          image=usage-metering-quota-service-client:local
+          uid="$(docker run --rm --entrypoint id "${image}" -u)"
+          echo "client runs as uid ${uid}"
+          if [ "${uid}" = "0" ]; then
+            echo "::error::the example client image runs as root"
+            exit 1
+          fi
+          docker run --rm --entrypoint node "${image}" -e '
+            const fs = require("node:fs");
+            const unexpected = ["src", "node_modules", "dist", "load", "tests"].filter((name) => fs.existsSync(name));
+            if (unexpected.length > 0) {
+              console.error("unexpected in the client image: " + unexpected.join(", "));
+              process.exit(1);
+            }
+            console.log("client image /app: " + fs.readdirSync(".").sort().join(" "));
+          '
+          environment="$(docker inspect --format '{{json .Config.Env}}' "$(docker compose ps --all --quiet client)")"
+          if grep -qE 'DATABASE_URL|POSTGRES_|local-development-only' <<< "${environment}"; then
+            echo "::error::the example client received database settings"
+            exit 1
+          fi
+          echo "the client container's environment holds no database setting"
+
+      # R25 for the whole stack: what is written before `docker compose down` (which keeps the
+      # database volume) must still be there after `docker compose up --build` recreates every
+      # container. The check's API key exists only in a file under RUNNER_TEMP, is never printed,
+      # and is removed when the step ends, whatever its outcome.
+      - name: Verify that data survives recreating the stack on the same database volume
+        shell: bash
+        run: |
+          work="${RUNNER_TEMP}/persistence"
+          trap 'rm -rf "${work}"' EXIT
+          mkdir -p "${work}"
+          chmod 700 "${work}"
+          api=http://127.0.0.1:8080
+          # METHOD PATH [JSON]: prints the response body and fails on any HTTP error.
+          request() {
+            local args=(--fail --silent --show-error -X "$1" -H "x-api-key: $(cat "${work}/key")")
+            if [ "$#" -ge 3 ]; then
+              args+=(-H "content-type: application/json" --data "$3")
+            fi
+            curl "${args[@]}" "${api}$2"
+          }
+          snapshot() {
+            mkdir -p "$1"
+            request GET /v1/account > "$1/account.json"
+            request GET "/v1/users/${user_id}" > "$1/user.json"
+            request GET /v1/usage > "$1/usage.json"
+            request GET "/v1/users/${user_id}/usage" > "$1/user-usage.json"
+            request GET /v1/history > "$1/history.json"
+          }
+          curl --fail --silent --show-error -X POST -H "content-type: application/json" \
+            --data '{"name":"CI persistence check"}' "${api}/v1/accounts" > "${work}/account.json"
+          jq -r .apiKey "${work}/account.json" > "${work}/key"
+          account_id="$(jq -r .id "${work}/account.json")"
+          rm "${work}/account.json"
+          user_id="$(request POST /v1/users '{"name":"Persistence user"}' | jq -r .id)"
+          request POST /v1/consume \
+            "{\"userId\":\"${user_id}\",\"units\":10,\"requestId\":\"persist-accepted\"}" > "${work}/accepted.json"
+          request POST /v1/consume \
+            "{\"userId\":\"${user_id}\",\"units\":25,\"requestId\":\"persist-rejected\"}" > "${work}/rejected.json"
+          snapshot "${work}/before"
+
+          docker compose logs --no-color api > api-before-restart.log
+          docker compose down
+          timeout 600 docker compose up --build --detach
+          for service in postgres api; do
+            health="$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps --quiet "${service}")")"
+            if [ "${health}" != "healthy" ]; then
+              echo "::error::${service} is not healthy after recreating the stack"
+              exit 1
+            fi
+          done
+          # The example client ran a second time, now against a database that already has data.
+          status="$(timeout 300 docker wait "$(docker compose ps --all --quiet client)")"
+          docker compose logs --no-color --no-log-prefix client > client-rerun.log 2>&1
+          if [ "${status}" != "0" ]; then
+            sed -E 's/umqs_[A-Za-z0-9_-]+/umqs_[REDACTED]/g' client-rerun.log
+            echo "::error::the example client exited with code ${status} on the recreated stack"
+            exit 1
+          fi
+
+          snapshot "${work}/after"
+          if ! diff -r "${work}/before" "${work}/after" > /dev/null; then
+            diff -r "${work}/before" "${work}/after" | head -n 40
+            echo "::error::the stored data changed when the stack was recreated"
+            exit 1
+          fi
+          request POST /v1/consume \
+            "{\"userId\":\"${user_id}\",\"units\":10,\"requestId\":\"persist-accepted\"}" > "${work}/replay.json"
+          if ! cmp -s "${work}/accepted.json" "${work}/replay.json"; then
+            echo "::error::the accepted request no longer replays its original response"
+            exit 1
+          fi
+          request GET /v1/usage > "${work}/usage-after-replay.json"
+          if ! cmp -s "${work}/before/usage.json" "${work}/usage-after-replay.json"; then
+            echo "::error::the replay changed the account's usage"
+            exit 1
+          fi
+          echo "account ${account_id}: account, user, usage ($(jq .used "${work}/before/usage.json") units)" \
+            "and history ($(jq '.decisions | length' "${work}/before/history.json") decisions) are byte-for-byte" \
+            "identical after recreating the stack; the accepted request replays its original response;" \
+            "the example client passed again (exit 0)"
 
       - name: Check the service logs and client output for errors and leaked credentials
         if: success() || failure()
         shell: bash
         run: |
           docker compose logs --no-color api > api.log
-          for file in api.log e2e.log; do
+          for file in api.log api-before-restart.log client.log client-rerun.log e2e.log; do
             if [ ! -f "${file}" ]; then
               continue
             fi
@@ -142,12 +287,14 @@ jobs:
               exit 1
             fi
           done
-          if grep -qE '"level":(50|60)' api.log; then
-            echo "::error::the api logged errors"
-            sed -E 's/umqs_[A-Za-z0-9_-]+/umqs_[REDACTED]/g' api.log
-            exit 1
-          fi
-          echo "no API key, database password or error-level entry in api.log or e2e.log"
+          for file in api.log api-before-restart.log; do
+            if [ -f "${file}" ] && grep -qE '"level":(50|60)' "${file}"; then
+              echo "::error::the api logged errors (${file})"
+              sed -E 's/umqs_[A-Za-z0-9_-]+/umqs_[REDACTED]/g' "${file}"
+              exit 1
+            fi
+          done
+          echo "no API key, database password or error-level entry in the api, client and e2e logs"
 
       - name: Stop the service and verify a graceful shutdown
         run: |

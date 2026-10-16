@@ -16,6 +16,7 @@ import {
   readCounters,
   type TestUser,
 } from "../../../helpers/consumption.js";
+import { checkQuotaInvariants, noViolations } from "../../../helpers/quota-invariants.js";
 import { createIntegrationApp, type IntegrationApp } from "../../../helpers/test-app.js";
 import { withTestClient } from "../../../helpers/test-database.js";
 
@@ -299,6 +300,250 @@ describe("rejections name the first blocking rule and count nothing", () => {
       blockingLevel: "USER",
       user: { monthlyAllowance: 10, used: 20, remaining: 0 },
     });
+  });
+
+  // R36: "reject further consumption at that level until allowance becomes available again".
+  it("accepts again at the user level once a reduced allowance is raised above usage", async () => {
+    const { account, user } = await freshTenant("Restored");
+    const plan = await createTestPlan(integration.app, account, {
+      name: "Restorable",
+      scope: "USER",
+      monthlyAllowance: 100,
+      maxUnitsPerRequest: 20,
+    });
+    await assignUserPlan(integration.app, account, user.id, plan);
+    const first = await consumeOk(account, user.id, 20);
+    const setAllowance = async (monthlyAllowance: number) => {
+      const response = await authenticatedRequest(integration.app, account, {
+        method: "PATCH",
+        url: `/v1/plans/${plan}`,
+        payload: { monthlyAllowance },
+      });
+      expect(response.statusCode, response.body).toBe(200);
+    };
+    const userUsage = async () => {
+      const response = await authenticatedRequest(integration.app, account, {
+        method: "GET",
+        url: `/v1/users/${user.id}/usage`,
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      return response.json<unknown>();
+    };
+
+    // Reduced below the 20 units already used: zero remaining, and a new request counts nothing.
+    await setAllowance(10);
+    expect(await userUsage()).toEqual({
+      month: "2026-10",
+      used: 20,
+      monthlyAllowance: 10,
+      maxUnitsPerRequest: 20,
+      remaining: 0,
+    });
+    const blocked = await consumeOk(account, user.id, 5);
+    expect(blocked).toMatchObject({
+      accepted: false,
+      blockingRule: "MONTHLY_ALLOWANCE",
+      blockingLevel: "USER",
+      user: { planId: plan, monthlyAllowance: 10, used: 20, remaining: 0 },
+      account: { used: 20 },
+    });
+    expect(await readCounters(account.id, user.id, OCTOBER)).toEqual({ account: 20, user: 20 });
+
+    // Raised above usage again: a new request is accepted from the restored allowance.
+    await setAllowance(30);
+    const restored = await consumeOk(account, user.id, 5);
+    expect(restored).toMatchObject({
+      accepted: true,
+      blockingRule: null,
+      blockingLevel: null,
+      user: { planId: plan, monthlyAllowance: 30, used: 25, remaining: 5 },
+      account: { planId: PREDEFINED_PLAN_IDS.starter, used: 25, remaining: 9_975 },
+    });
+    expect(await readCounters(account.id, user.id, OCTOBER)).toEqual({ account: 25, user: 25 });
+    expect(await userUsage()).toEqual({
+      month: "2026-10",
+      used: 25,
+      monthlyAllowance: 30,
+      maxUnitsPerRequest: 20,
+      remaining: 5,
+    });
+
+    // Every decision keeps the allowance it was decided with (100, 10, 30).
+    const history = await authenticatedRequest(integration.app, account, {
+      method: "GET",
+      url: `/v1/history?userId=${user.id}`,
+    });
+    expect(history.statusCode, history.body).toBe(200);
+    expect(history.json<{ decisions: unknown[] }>().decisions).toEqual([restored, blocked, first]);
+    expect(await checkQuotaInvariants()).toEqual(noViolations());
+  });
+});
+
+// R16 and R31: "Several users may share the same plan definition while keeping separate usage
+// totals", and "Users sharing a plan do not share their individual allowance".
+describe("users sharing one plan", () => {
+  it("keep separate allowances: one exhausted user is rejected while the other still consumes", async () => {
+    const account = await createTestAccount(integration.app, "Shared Seat");
+    const plan = await createTestPlan(integration.app, account, {
+      name: "Shared Seat",
+      scope: "USER",
+      monthlyAllowance: 30,
+      maxUnitsPerRequest: 20,
+    });
+    const first = await createTestUser(integration.app, account, "First");
+    const second = await createTestUser(integration.app, account, "Second");
+    await assignUserPlan(integration.app, account, first.id, plan);
+    await assignUserPlan(integration.app, account, second.id, plan);
+    for (const user of [first, second]) {
+      const response = await authenticatedRequest(integration.app, account, {
+        method: "GET",
+        url: `/v1/users/${user.id}`,
+      });
+      expect(response.json<{ plan: { id: string } }>().plan.id).toBe(plan);
+    }
+    expect(await countCounterRows(account.id)).toBe(0);
+
+    // The first user uses up the shared plan's 30 units.
+    await consumeOk(account, first.id, 20);
+    await consumeOk(account, first.id, 10);
+    const exhausted = await consumeOk(account, first.id, 1);
+    expect(exhausted).toMatchObject({
+      accepted: false,
+      blockingRule: "MONTHLY_ALLOWANCE",
+      blockingLevel: "USER",
+      user: { planId: plan, used: 30, remaining: 0 },
+      account: { used: 30 },
+    });
+    expect(await readCounters(account.id, first.id, OCTOBER)).toEqual({ account: 30, user: 30 });
+
+    // The second user, on the same plan, still has its own 30 units.
+    const other = await consumeOk(account, second.id, 20);
+    expect(other).toMatchObject({
+      accepted: true,
+      user: { planId: plan, used: 20, remaining: 10 },
+      account: { used: 50 },
+    });
+    expect(await readCounters(account.id, first.id, OCTOBER)).toEqual({ account: 50, user: 30 });
+    expect(await readCounters(account.id, second.id, OCTOBER)).toEqual({ account: 50, user: 20 });
+
+    // The account's usage is the sum of its users' accepted usage; the rejection counted nothing.
+    const usage = await authenticatedRequest(integration.app, account, {
+      method: "GET",
+      url: "/v1/usage",
+    });
+    expect(usage.json<{ used: number }>().used).toBe(50);
+    expect(await countDecisions(account.id)).toBe(4);
+    expect(await checkQuotaInvariants()).toEqual(noViolations());
+  });
+});
+
+// R34: "Updating an account's custom plan affects its assigned account or users", here the account.
+describe("account plan updates", () => {
+  it("apply to the account's next decision and usage, leave the user plan alone, and stay private", async () => {
+    const { account, user } = await freshTenant("Account Plan Update");
+    const intruder = await createTestAccount(integration.app, "Account Plan Intruder");
+    const plan = await createTestPlan(integration.app, account, {
+      name: "Team Pool",
+      scope: "ACCOUNT",
+      monthlyAllowance: 50,
+      maxUnitsPerRequest: 20,
+    });
+    await assignAccountPlan(integration.app, account, plan);
+    const basicUser = {
+      planId: PREDEFINED_PLAN_IDS.basic,
+      planName: "Basic",
+      monthlyAllowance: 1_000,
+      maxUnitsPerRequest: 20,
+    };
+    const get = async (as: TestAccount, url: string) => {
+      const response = await authenticatedRequest(integration.app, as, { method: "GET", url });
+      expect(response.statusCode, response.body).toBe(200);
+      return response.json<unknown>();
+    };
+
+    // Under the original limits: 15 of 50 units, up to 20 per request.
+    const before = await consumeOk(account, user.id, 15);
+    expect(before).toMatchObject({
+      accepted: true,
+      account: {
+        planId: plan,
+        planName: "Team Pool",
+        monthlyAllowance: 50,
+        maxUnitsPerRequest: 20,
+        used: 15,
+        remaining: 35,
+      },
+      user: { ...basicUser, used: 15 },
+    });
+
+    const patch = await authenticatedRequest(integration.app, account, {
+      method: "PATCH",
+      url: `/v1/plans/${plan}`,
+      payload: { name: "Team Pool v2", monthlyAllowance: 25, maxUnitsPerRequest: 5 },
+    });
+    expect(patch.statusCode, patch.body).toBe(200);
+
+    // The next decision uses the updated account plan: 10 units now exceed its 5 per request,
+    // although the user's own plan allows 20.
+    const blocked = await consumeOk(account, user.id, 10);
+    expect(blocked).toMatchObject({
+      accepted: false,
+      blockingRule: "MAX_UNITS_PER_REQUEST",
+      blockingLevel: "ACCOUNT",
+      account: {
+        planId: plan,
+        planName: "Team Pool v2",
+        monthlyAllowance: 25,
+        maxUnitsPerRequest: 5,
+        used: 15,
+        remaining: 10,
+      },
+      user: { ...basicUser, used: 15 },
+    });
+    const within = await consumeOk(account, user.id, 5);
+    expect(within).toMatchObject({
+      accepted: true,
+      account: { planName: "Team Pool v2", used: 20, remaining: 5 },
+      user: { ...basicUser, used: 20 },
+    });
+    expect(await readCounters(account.id, user.id, OCTOBER)).toEqual({ account: 20, user: 20 });
+    expect(await get(account, "/v1/usage")).toEqual({
+      month: "2026-10",
+      used: 20,
+      monthlyAllowance: 25,
+      maxUnitsPerRequest: 5,
+      remaining: 5,
+    });
+    expect(await get(account, "/v1/account")).toMatchObject({
+      plan: { id: plan, name: "Team Pool v2", monthlyAllowance: 25, maxUnitsPerRequest: 5 },
+    });
+    expect(await get(account, `/v1/users/${user.id}`)).toMatchObject({
+      plan: { id: PREDEFINED_PLAN_IDS.basic, monthlyAllowance: 1_000, maxUnitsPerRequest: 20 },
+    });
+
+    // Another account can neither see, change nor assign the plan.
+    const intruderPlans = await get(intruder, "/v1/plans");
+    expect(JSON.stringify(intruderPlans)).not.toContain(plan);
+    const notFound = { error: { code: "NOT_FOUND", message: "Plan not found" } };
+    const foreignPatch = await authenticatedRequest(integration.app, intruder, {
+      method: "PATCH",
+      url: `/v1/plans/${plan}`,
+      payload: { monthlyAllowance: 1_000_000 },
+    });
+    const foreignAssign = await authenticatedRequest(integration.app, intruder, {
+      method: "PUT",
+      url: "/v1/account/plan",
+      payload: { planId: plan },
+    });
+    expect([foreignPatch.statusCode, foreignPatch.json()]).toEqual([404, notFound]);
+    expect([foreignAssign.statusCode, foreignAssign.json()]).toEqual([404, notFound]);
+    expect(await get(account, "/v1/usage")).toMatchObject({ monthlyAllowance: 25 });
+    expect(await get(intruder, "/v1/account")).toMatchObject({
+      plan: { id: PREDEFINED_PLAN_IDS.starter },
+    });
+    expect(await countDecisions(account.id)).toBe(3);
+    expect(await countDecisions(intruder.id)).toBe(0);
+    expect(await checkQuotaInvariants()).toEqual(noViolations());
   });
 });
 

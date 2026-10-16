@@ -230,12 +230,17 @@ describe("the owner's own view is unaffected", () => {
     expect(account.json<{ plan: Created }>().plan.id).toBe(ownerAccountPlan.id);
   });
 
-  it("sees changes to its custom plan reflected in the assigned user and account", async () => {
+  it("sees changes to its custom plans reflected in the assigned user and the account", async () => {
     await send(owner, "PATCH", `/v1/plans/${ownerUserPlan.id}`, { maxUnitsPerRequest: 65 }, 200);
+    await send(owner, "PATCH", `/v1/plans/${ownerAccountPlan.id}`, { maxUnitsPerRequest: 55 }, 200);
 
     const user = await send(owner, "GET", `/v1/users/${ownerUser.id}`, undefined, 200);
+    const account = await send(owner, "GET", "/v1/account", undefined, 200);
 
     expect(user.json<{ plan: { maxUnitsPerRequest: number } }>().plan.maxUnitsPerRequest).toBe(65);
+    expect(account.json<{ plan: { maxUnitsPerRequest: number } }>().plan.maxUnitsPerRequest).toBe(
+      55,
+    );
   });
 });
 

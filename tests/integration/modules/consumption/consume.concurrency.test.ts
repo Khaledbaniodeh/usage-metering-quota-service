@@ -203,6 +203,187 @@ describe("plan changes while a consume is in flight", () => {
   });
 });
 
+// R48: "ensuring usage totals and decisions remain correct as rules change and requests arrive
+// concurrently". A consume reads its plan snapshot first and only then waits for the account
+// counter lock, so the order of events is fixed by PostgreSQL, not by timing.
+/** A decision with the echoed request fields the waves are identified by. */
+type WaveDecision = Decision & { requestId: string; units: number };
+
+describe("plan changes during many concurrent consumes", () => {
+  it("give every decision one complete plan version and keep counters and history correct", async () => {
+    // A long lock timeout: nothing may answer BUSY_RETRY while the test holds the lock.
+    const waves = await createIntegrationApp({
+      clock: () => now,
+      database: { poolMax: 20, connectionTimeoutMs: 15_000, lockTimeoutMs: 15_000 },
+    });
+    try {
+      const account = await createTestAccount(waves.app, "Plan Change Waves");
+      const users: TestUser[] = [];
+      for (let index = 1; index <= 4; index += 1) {
+        users.push(await createTestUser(waves.app, account, `Wave User ${String(index)}`));
+      }
+      const seat = await createTestPlan(waves.app, account, {
+        name: "Seat v1",
+        scope: "USER",
+        monthlyAllowance: 1_000,
+        maxUnitsPerRequest: 50,
+      });
+      const poolA = await createTestPlan(waves.app, account, {
+        name: "Pool A",
+        scope: "ACCOUNT",
+        monthlyAllowance: 100,
+        maxUnitsPerRequest: 100,
+      });
+      const poolB = await createTestPlan(waves.app, account, {
+        name: "Pool B",
+        scope: "ACCOUNT",
+        monthlyAllowance: 120,
+        maxUnitsPerRequest: 15,
+      });
+      await assignAccountPlan(waves.app, account, poolA);
+      for (const user of users) {
+        await assignUserPlan(waves.app, account, user.id, seat);
+      }
+      const OLD = {
+        account: {
+          planId: poolA,
+          planName: "Pool A",
+          monthlyAllowance: 100,
+          maxUnitsPerRequest: 100,
+        },
+        user: {
+          planId: seat,
+          planName: "Seat v1",
+          monthlyAllowance: 1_000,
+          maxUnitsPerRequest: 50,
+        },
+      };
+      const NEW = {
+        account: {
+          planId: poolB,
+          planName: "Pool B",
+          monthlyAllowance: 120,
+          maxUnitsPerRequest: 15,
+        },
+        user: { planId: seat, planName: "Seat v2", monthlyAllowance: 40, maxUnitsPerRequest: 10 },
+      };
+      expect(await countDecisions(account.id)).toBe(0);
+      held.push(await holdAccountCounterLock(account.id, OCTOBER));
+      const user = (index: number) => users[index % users.length]?.id ?? "";
+
+      // Wave 1: six requests read the old plans, then all wait for the counter lock.
+      const oldWave = Array.from({ length: 6 }, (_unused, index) =>
+        consume(account, user(index), 20, waves.app),
+      );
+      await waitForLockWaiters(6);
+
+      // The plan update and the account switch complete while all six are still waiting.
+      const patch = await within(
+        authenticatedRequest(waves.app, account, {
+          method: "PATCH",
+          url: `/v1/plans/${seat}`,
+          payload: { name: "Seat v2", monthlyAllowance: 40, maxUnitsPerRequest: 10 },
+        }),
+        2_000,
+        "the plan update",
+      );
+      const accountSwitch = await within(
+        authenticatedRequest(waves.app, account, {
+          method: "PUT",
+          url: "/v1/account/plan",
+          payload: { planId: poolB },
+        }),
+        2_000,
+        "the account plan switch",
+      );
+      expect([patch.statusCode, accountSwitch.statusCode]).toEqual([200, 200]);
+      await waitForLockWaiters(6);
+
+      // Wave 2: four requests start after the changes, read the new plans and wait as well.
+      const newWave = Array.from({ length: 4 }, (_unused, index) =>
+        consume(account, user(index), 8, waves.app),
+      );
+      await waitForLockWaiters(10);
+      await held[0]?.release();
+
+      const [oldResponses, newResponses] = await within(
+        Promise.all([Promise.all(oldWave), Promise.all(newWave)]),
+        20_000,
+        "both waves",
+      );
+      // No error, deadlock or BUSY_RETRY: every request got a decision.
+      expect([...oldResponses, ...newResponses].map((response) => response.statusCode)).toEqual(
+        Array.from({ length: 10 }, () => 200),
+      );
+      const plansOf = (decision: Decision) => ({
+        account: {
+          planId: decision.account.planId,
+          planName: decision.account.planName,
+          monthlyAllowance: decision.account.monthlyAllowance,
+          maxUnitsPerRequest: decision.account.maxUnitsPerRequest,
+        },
+        user: {
+          planId: decision.user.planId,
+          planName: decision.user.planName,
+          monthlyAllowance: decision.user.monthlyAllowance,
+          maxUnitsPerRequest: decision.user.maxUnitsPerRequest,
+        },
+      });
+      const oldDecisions = oldResponses.map((response) => response.json<WaveDecision>());
+      const newDecisions = newResponses.map((response) => response.json<WaveDecision>());
+      // Each wave has entirely one version: never old names with new limits, or mixed levels.
+      for (const decision of oldDecisions) {
+        expect(plansOf(decision)).toEqual(OLD);
+      }
+      for (const decision of newDecisions) {
+        expect(plansOf(decision)).toEqual(NEW);
+      }
+
+      // The stored decisions carry the same complete versions.
+      const stored = await withTestClient(async (client) => {
+        const result = await client.query<{ requestId: string; plans: typeof OLD }>(
+          `SELECT request_id AS "requestId",
+                  json_build_object(
+                    'account', json_build_object(
+                      'planId', account_plan_id, 'planName', account_plan_name,
+                      'monthlyAllowance', account_monthly_allowance,
+                      'maxUnitsPerRequest', account_max_units_per_request),
+                    'user', json_build_object(
+                      'planId', user_plan_id, 'planName', user_plan_name,
+                      'monthlyAllowance', user_monthly_allowance,
+                      'maxUnitsPerRequest', user_max_units_per_request)) AS plans
+           FROM consume_decisions WHERE account_id = $1`,
+          [account.id],
+        );
+        return new Map(result.rows.map((row) => [row.requestId, row.plans]));
+      });
+      expect(stored.size).toBe(10);
+      for (const decision of oldDecisions) {
+        expect(stored.get(decision.requestId)).toEqual(OLD);
+      }
+      for (const decision of newDecisions) {
+        expect(stored.get(decision.requestId)).toEqual(NEW);
+      }
+
+      // A request after everything uses the final state.
+      const final = (await consume(account, user(0), 5, waves.app)).json<WaveDecision>();
+      expect(plansOf(final)).toEqual(NEW);
+
+      // The account counter is the sum of the accepted decisions, in either version.
+      const acceptedUnits = [...oldDecisions, ...newDecisions, final]
+        .filter((decision) => decision.accepted)
+        .reduce((total, decision) => total + decision.units, 0);
+      expect((await readCounters(account.id, user(0), OCTOBER)).account).toBe(acceptedUnits);
+      expect(await countDecisions(account.id)).toBe(11);
+      // Serialized "used before" values, limits per snapshot, first failing rule, no duplicates.
+      expect(await checkQuotaInvariants()).toEqual(noViolations());
+    } finally {
+      await Promise.all(held.splice(0).map((lock) => lock.release()));
+      await waves.close();
+    }
+  });
+});
+
 describe("allowances under concurrent consumption", () => {
   it("never lets one user exceed the user allowance", async () => {
     const { account, user } = await freshTenant("Hot User");
