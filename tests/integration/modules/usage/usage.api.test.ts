@@ -7,6 +7,8 @@ import {
 } from "../../../helpers/account-harness.js";
 import {
   assignUserPlan,
+  countCounterRows,
+  countDecisions,
   createTestPlan,
   createTestUser,
   PREDEFINED_PLAN_IDS,
@@ -58,7 +60,7 @@ async function consume(account: TestAccount, userId: string, units: number) {
 }
 
 describe("authentication", () => {
-  it.each(["/v1/usage", `/v1/users/${UNKNOWN_USER_ID}/usage`])(
+  it.each(["/v1/usage", `/v1/users/${UNKNOWN_USER_ID}/usage`, "/v1/usage/users"])(
     "%s requires an API key",
     async (url) => {
       const response = await integration.app.inject({ method: "GET", url });
@@ -66,6 +68,41 @@ describe("authentication", () => {
       expect(response.statusCode).toBe(401);
     },
   );
+
+  // R08: "Reject missing or invalid keys", here for the paginated per-user usage list.
+  it("answers GET /v1/usage/users without a valid key with the standard 401, no data and no writes", async () => {
+    const owner = await createTestAccount(integration.app, "Listed Owner");
+    const user = await createTestUser(integration.app, owner, "Listed User");
+    await consume(owner, user.id, 5);
+    const before = [await countDecisions(owner.id), await countCounterRows(owner.id)];
+    const url = "/v1/usage/users?month=2026-10&limit=1";
+
+    const missing = await integration.app.inject({ method: "GET", url });
+    const invalid = await integration.app.inject({
+      method: "GET",
+      url,
+      headers: { "x-api-key": `umqs_${"A".repeat(43)}` },
+    });
+    const malformed = await integration.app.inject({
+      method: "GET",
+      url,
+      headers: { "x-api-key": "not-a-key" },
+    });
+
+    for (const response of [missing, invalid, malformed]) {
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toEqual({
+        error: { code: "UNAUTHORIZED", message: "A valid API key is required" },
+      });
+      expect(response.body).not.toContain(user.id);
+      expect(response.body).not.toContain(owner.id);
+    }
+    expect(invalid.body).toBe(missing.body);
+    expect(malformed.body).toBe(missing.body);
+    expect([await countDecisions(owner.id), await countCounterRows(owner.id)]).toEqual(before);
+    // The owner's own key still lists the user.
+    expect(await getOk(owner, url)).toMatchObject({ users: [{ userId: user.id, used: 5 }] });
+  });
 });
 
 describe("current month", () => {
