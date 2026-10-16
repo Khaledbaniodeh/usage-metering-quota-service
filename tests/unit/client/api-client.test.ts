@@ -6,9 +6,16 @@ import {
   buildUrl,
   createApiClient,
   parseBaseUrl,
+  type AccountApi,
   type FetchFunction,
 } from "../../../client/api-client.js";
-import { fakeFetch, json, sampleApiKey, untilAborted } from "../../helpers/fake-fetch.js";
+import {
+  fakeFetch,
+  json,
+  sampleApiKey,
+  untilAborted,
+  type RecordedRequest,
+} from "../../helpers/fake-fetch.js";
 
 const BASE_URL = "http://127.0.0.1:8080";
 const USER_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
@@ -140,6 +147,135 @@ describe("requests", () => {
       "/v1/usage",
       "/v1/users/id%2Fwith%3Fspecial/usage?month=2026-09",
     ]);
+  });
+});
+
+describe("plan and assignment calls", () => {
+  const PLAN_ID = "cccccccc-dddd-4eee-8fff-000000000001";
+
+  /** Every call answers `status` with an empty object; each request is recorded. */
+  function recorder(status = 200) {
+    const apiKey = sampleApiKey();
+    const recorded = fakeFetch(() => json(status, {}));
+    return { apiKey, ...recorded, api: client(recorded.fetch).forAccount(new ApiKey(apiKey)) };
+  }
+
+  const describeRequest = (request: RecordedRequest | undefined): unknown[] => [
+    request?.method,
+    `${request?.url.pathname ?? ""}${request?.url.search ?? ""}`,
+    request?.body === null || request?.body === undefined
+      ? null
+      : (JSON.parse(request.body) as unknown),
+  ];
+
+  it("lists plans, optionally of one scope", async () => {
+    const { api, requests } = recorder();
+
+    await api.listPlans();
+    await api.listPlans("USER");
+
+    expect(requests.map(describeRequest)).toEqual([
+      ["GET", "/v1/plans", null],
+      ["GET", "/v1/plans?scope=USER", null],
+    ]);
+  });
+
+  it("creates a plan with exactly the documented fields and expects 201", async () => {
+    const { api, requests, apiKey } = recorder(201);
+
+    await api.createPlan({
+      name: "Shared cap",
+      scope: "ACCOUNT",
+      monthlyAllowance: 35,
+      maxUnitsPerRequest: 100,
+    });
+
+    expect(describeRequest(requests[0])).toEqual([
+      "POST",
+      "/v1/plans",
+      { name: "Shared cap", scope: "ACCOUNT", monthlyAllowance: 35, maxUnitsPerRequest: 100 },
+    ]);
+    expect(requests[0]?.headers["x-api-key"]).toBe(apiKey);
+  });
+
+  it("updates a plan with only the fields given", async () => {
+    const { api, requests } = recorder();
+
+    await api.updatePlan(PLAN_ID, { monthlyAllowance: 40 });
+    await api.updatePlan("id/with?special", { name: "Renamed", maxUnitsPerRequest: 5 });
+
+    expect(requests.map(describeRequest)).toEqual([
+      ["PATCH", `/v1/plans/${PLAN_ID}`, { monthlyAllowance: 40 }],
+      ["PATCH", "/v1/plans/id%2Fwith%3Fspecial", { name: "Renamed", maxUnitsPerRequest: 5 }],
+    ]);
+  });
+
+  it("switches the account and a user to a plan by ID, and reads one user", async () => {
+    const { api, requests } = recorder();
+
+    await api.assignAccountPlan(PLAN_ID);
+    await api.assignUserPlan(USER_ID, PLAN_ID);
+    await api.getUser(USER_ID);
+
+    expect(requests.map(describeRequest)).toEqual([
+      ["PUT", "/v1/account/plan", { planId: PLAN_ID }],
+      ["PUT", `/v1/users/${USER_ID}/plan`, { planId: PLAN_ID }],
+      ["GET", `/v1/users/${USER_ID}`, null],
+    ]);
+  });
+
+  it.each([
+    ["listPlans", (api: AccountApi) => api.listPlans(), "GET /v1/plans", 201],
+    [
+      "createPlan",
+      (api: AccountApi) =>
+        api.createPlan({ name: "P", scope: "USER", monthlyAllowance: 1, maxUnitsPerRequest: 1 }),
+      "POST /v1/plans",
+      200,
+    ],
+    [
+      "updatePlan",
+      (api: AccountApi) => api.updatePlan(PLAN_ID, { monthlyAllowance: 1 }),
+      `PATCH /v1/plans/${PLAN_ID}`,
+      201,
+    ],
+    [
+      "assignAccountPlan",
+      (api: AccountApi) => api.assignAccountPlan(PLAN_ID),
+      "PUT /v1/account/plan",
+      201,
+    ],
+    [
+      "assignUserPlan",
+      (api: AccountApi) => api.assignUserPlan(USER_ID, PLAN_ID),
+      `PUT /v1/users/${USER_ID}/plan`,
+      201,
+    ],
+    ["getUser", (api: AccountApi) => api.getUser(USER_ID), `GET /v1/users/${USER_ID}`, 201],
+  ] as const)("%s fails on any other success status", async (_name, call, label, status) => {
+    const { api } = recorder(status);
+
+    const error = await apiErrorOf(call(api));
+
+    expect(error.kind).toBe("status");
+    expect(error.message).toBe(
+      `${label}: expected HTTP ${status === 200 ? "201" : "200"}, got ${String(status)}`,
+    );
+  });
+
+  it("names a refused assignment by its error code only", async () => {
+    const { fetch } = fakeFetch(() =>
+      json(409, { error: { code: "PLAN_SCOPE_MISMATCH", message: "Plan scope differs" } }),
+    );
+
+    const error = await apiErrorOf(
+      client(fetch).forAccount(new ApiKey(sampleApiKey())).assignUserPlan(USER_ID, PLAN_ID),
+    );
+
+    expect(error.message).toBe(
+      `PUT /v1/users/${USER_ID}/plan: expected HTTP 200, got 409 PLAN_SCOPE_MISMATCH`,
+    );
+    expect(error.code).toBe("PLAN_SCOPE_MISMATCH");
   });
 });
 

@@ -2,11 +2,16 @@ import { ApiKey } from "./api-key.js";
 import type {
   Account,
   ConsumeRequest,
+  CreatePlanRequest,
   Decision,
   ErrorBody,
   HistoryPage,
   MonthlyUsage,
   PageQuery,
+  PlanList,
+  PlanResource,
+  PlanScope,
+  UpdatePlanRequest,
   User,
   UserPage,
   UserUsagePage,
@@ -73,7 +78,17 @@ export interface PublicApi {
 }
 
 export interface AccountApi {
+  /** Switches the account to a predefined or own custom ACCOUNT plan. */
+  readonly assignAccountPlan: (planId: string) => Promise<Account>;
+  /** Predefined plans and the account's own custom plans, optionally of one scope. */
+  readonly listPlans: (scope?: PlanScope) => Promise<PlanList>;
+  readonly createPlan: (plan: CreatePlanRequest) => Promise<PlanResource>;
+  /** Changes an own custom plan; the change applies to new requests at once. */
+  readonly updatePlan: (planId: string, changes: UpdatePlanRequest) => Promise<PlanResource>;
   readonly createUser: (name: string) => Promise<User>;
+  readonly getUser: (userId: string) => Promise<User>;
+  /** Switches a user to a predefined or own custom USER plan. */
+  readonly assignUserPlan: (userId: string, planId: string) => Promise<User>;
   readonly listUsers: (query?: PageQuery) => Promise<UserPage>;
   readonly consume: (request: ConsumeRequest) => Promise<ConsumeResult>;
   readonly accountUsage: (month?: string) => Promise<MonthlyUsage>;
@@ -89,7 +104,7 @@ export interface AccountApi {
 type QueryValues = Readonly<Record<string, string | number | undefined>>;
 
 interface Call {
-  readonly method: "GET" | "POST";
+  readonly method: "GET" | "POST" | "PUT" | "PATCH";
   readonly path: string;
   readonly expectedStatus: 200 | 201;
   readonly query?: QueryValues;
@@ -273,7 +288,43 @@ export function createApiClient(options: ApiClientOptions): PublicApi {
 
   function forAccount(apiKey: ApiKey): AccountApi {
     const userPath = (userId: string) => `/v1/users/${encodeURIComponent(userId)}`;
+    /** A write returning the documented response type `T` (taken on trust, as for `get`). */
+    const write = async <T>(
+      method: "POST" | "PUT" | "PATCH",
+      path: string,
+      body: unknown,
+      expectedStatus: 200 | 201,
+    ): Promise<T> =>
+      (await send({ method, path, body, expectedStatus, apiKey })).data as unknown as T;
     return {
+      assignAccountPlan: (planId) => write<Account>("PUT", "/v1/account/plan", { planId }, 200),
+      listPlans: (scope) => get<PlanList>("/v1/plans", { scope }, apiKey),
+      createPlan: (plan) =>
+        write<PlanResource>(
+          "POST",
+          "/v1/plans",
+          {
+            name: plan.name,
+            scope: plan.scope,
+            monthlyAllowance: plan.monthlyAllowance,
+            maxUnitsPerRequest: plan.maxUnitsPerRequest,
+          },
+          201,
+        ),
+      updatePlan: (planId, changes) =>
+        write<PlanResource>(
+          "PATCH",
+          `/v1/plans/${encodeURIComponent(planId)}`,
+          {
+            name: changes.name,
+            monthlyAllowance: changes.monthlyAllowance,
+            maxUnitsPerRequest: changes.maxUnitsPerRequest,
+          },
+          200,
+        ),
+      getUser: (userId) => get<User>(userPath(userId), {}, apiKey),
+      assignUserPlan: (userId, planId) =>
+        write<User>("PUT", `${userPath(userId)}/plan`, { planId }, 200),
       createUser: async (name) => {
         const { data } = await send({
           method: "POST",

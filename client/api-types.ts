@@ -16,6 +16,31 @@ export interface Plan {
   readonly maxUnitsPerRequest: number;
 }
 
+/** A plan as a resource of its own (GET/POST /v1/plans, PATCH /v1/plans/{planId}). */
+export interface PlanResource extends Plan {
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+/** Predefined plans first, then the account's own custom plans. */
+export interface PlanList {
+  readonly plans: readonly PlanResource[];
+}
+
+export interface CreatePlanRequest {
+  readonly name: string;
+  readonly scope: PlanScope;
+  readonly monthlyAllowance: number;
+  readonly maxUnitsPerRequest: number;
+}
+
+/** At least one field; scope, owner and code never change. */
+export interface UpdatePlanRequest {
+  readonly name?: string;
+  readonly monthlyAllowance?: number;
+  readonly maxUnitsPerRequest?: number;
+}
+
 export interface Account {
   readonly id: string;
   readonly name: string;
