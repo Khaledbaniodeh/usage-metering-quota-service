@@ -124,6 +124,12 @@ export function checkListedUsage(
   }
 }
 
+/** The plan a level was decided with, and that level's usage after the decision. */
+export interface LevelExpectation {
+  readonly plan: Plan;
+  readonly used: number;
+}
+
 export interface DecisionExpectation {
   readonly requestId: string;
   readonly userId: string;
@@ -131,12 +137,14 @@ export interface DecisionExpectation {
   readonly accepted: boolean;
   readonly blockingRule: Decision["blockingRule"];
   readonly blockingLevel: Decision["blockingLevel"];
-  /** The user's and the account's usage after the decision. */
-  readonly userUsed: number;
-  readonly accountUsed: number;
+  readonly user: LevelExpectation;
+  readonly account: LevelExpectation;
 }
 
-/** A POST /v1/consume decision: echoed request, outcome and usage after it. */
+/**
+ * A POST /v1/consume decision: the echoed request, the outcome, and for each level the plan it was
+ * decided with, the usage after it and the exact remaining allowance.
+ */
 export function checkDecision(decision: Decision, expected: DecisionExpectation): void {
   const what = `decision ${expected.requestId}`;
   checkEqual(
@@ -149,9 +157,47 @@ export function checkDecision(decision: Decision, expected: DecisionExpectation)
     [expected.accepted, expected.blockingRule, expected.blockingLevel],
     `${what} outcome`,
   );
-  checkEqual(
-    [decision.user.used, decision.account.used],
-    [expected.userUsed, expected.accountUsed],
-    `${what} [user used, account used]`,
-  );
+  const levels = [
+    ["user", decision.user, expected.user],
+    ["account", decision.account, expected.account],
+  ] as const;
+  for (const [level, actual, { plan, used }] of levels) {
+    checkEqual(
+      [
+        actual.planId,
+        actual.planName,
+        actual.monthlyAllowance,
+        actual.maxUnitsPerRequest,
+        actual.used,
+        actual.remaining,
+      ],
+      [
+        plan.id,
+        plan.name,
+        plan.monthlyAllowance,
+        plan.maxUnitsPerRequest,
+        used,
+        Math.max(0, plan.monthlyAllowance - used),
+      ],
+      `${what} ${level} [planId, planName, monthlyAllowance, maxUnitsPerRequest, used, remaining]`,
+    );
+  }
+}
+
+/** "1000/month, 20/request": a plan's two rules. */
+export function limitsOf(plan: Pick<Plan, "monthlyAllowance" | "maxUnitsPerRequest">): string {
+  return `${String(plan.monthlyAllowance)}/month, ${String(plan.maxUnitsPerRequest)}/request`;
+}
+
+/**
+ * One printed line per decision: request ID, outcome (with the blocking rule and level when
+ * rejected), then each level's usage and remaining allowance after the decision.
+ */
+export function describeDecision(decision: Decision): string {
+  const outcome = decision.accepted
+    ? `ACCEPTED ${String(decision.units)} units`
+    : `REJECTED ${String(decision.units)} units by ${String(decision.blockingLevel)} ${String(decision.blockingRule)}`;
+  const level = (name: string, value: Decision["user"]) =>
+    `${name} "${value.planName}" ${String(value.used)} used, ${String(value.remaining)} remaining`;
+  return `${decision.requestId}: ${outcome} | ${level("user", decision.user)} | ${level("account", decision.account)}`;
 }

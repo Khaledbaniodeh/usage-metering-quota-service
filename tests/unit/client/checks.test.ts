@@ -5,7 +5,9 @@ import {
   checkDecision,
   checkListedUsage,
   checkMonthlyUsage,
+  describeDecision,
   FormMismatch,
+  limitsOf,
   usageForm,
   type DecisionExpectation,
 } from "../../../client/checks.js";
@@ -184,30 +186,47 @@ describe("checkListedUsage", () => {
 });
 
 describe("checkDecision", () => {
+  const STARTER: Plan = {
+    id: "a0000000-0000-4000-8000-000000000001",
+    code: "starter",
+    name: "Starter",
+    scope: "ACCOUNT",
+    monthlyAllowance: 10_000,
+    maxUnitsPerRequest: 100,
+  };
+  const level = (plan: Plan, used: number) => ({
+    planId: plan.id,
+    planName: plan.name,
+    monthlyAllowance: plan.monthlyAllowance,
+    maxUnitsPerRequest: plan.maxUnitsPerRequest,
+    used,
+    remaining: Math.max(0, plan.monthlyAllowance - used),
+  });
   const expected: DecisionExpectation = {
     requestId: "run-rejected-1",
     userId: USER.id,
-    units: 21,
+    units: 25,
     accepted: false,
     blockingRule: "MAX_UNITS_PER_REQUEST",
     blockingLevel: "USER",
-    userUsed: 5,
-    accountUsed: 12,
+    user: { plan: BASIC, used: 10 },
+    account: { plan: STARTER, used: 10 },
   };
-  const decision = {
+  const decision: Decision = {
     requestId: "run-rejected-1",
     userId: USER.id,
-    units: 21,
+    units: 25,
     accepted: false,
     blockingRule: "MAX_UNITS_PER_REQUEST",
     blockingLevel: "USER",
     month: "2026-10",
     processedAt: "2026-10-14T10:00:00.000Z",
-    account: { used: 12 },
-    user: { used: 5 },
-  } as unknown as Decision;
+    account: level(STARTER, 10),
+    user: level(BASIC, 10),
+  };
+  const LEVEL_FIELDS = "[planId, planName, monthlyAllowance, maxUnitsPerRequest, used, remaining]";
 
-  it("accepts a decision matching the request, outcome and usage", () => {
+  it("accepts a decision matching the request, outcome, plans, usage and remaining", () => {
     expect(() => {
       checkDecision(decision, expected);
     }).not.toThrow();
@@ -217,7 +236,7 @@ describe("checkDecision", () => {
     expect(() => {
       checkDecision({ ...decision, requestId: "run-accepted-1" }, expected);
     }).toThrow(
-      `decision run-rejected-1 [requestId, userId, units]: expected ["run-rejected-1","${USER.id}",21], got ["run-accepted-1","${USER.id}",21]`,
+      `decision run-rejected-1 [requestId, userId, units]: expected ["run-rejected-1","${USER.id}",25], got ["run-accepted-1","${USER.id}",25]`,
     );
   });
 
@@ -231,16 +250,100 @@ describe("checkDecision", () => {
   });
 
   it("rejects a rejection that changed usage", () => {
-    const counted = { ...decision, user: { ...decision.user, used: 26 } };
+    const counted = { ...decision, user: level(BASIC, 35) };
 
     expect(() => {
       checkDecision(counted, expected);
-    }).toThrow("decision run-rejected-1 [user used, account used]: expected [5,12], got [26,12]");
+    }).toThrow(
+      `decision run-rejected-1 user ${LEVEL_FIELDS}: expected ["${BASIC.id}","Basic",1000,20,10,990], got ["${BASIC.id}","Basic",1000,20,35,965]`,
+    );
   });
 
-  it("rejects the wrong outcome", () => {
+  it.each([
+    ["the user level", "USER", "ACCOUNT"],
+    ["the account level", "ACCOUNT", "USER"],
+  ] as const)("rejects a rejection attributed to the wrong level (%s)", (_label, right, wrong) => {
+    const rightLevel = { ...expected, blockingLevel: right };
+
     expect(() => {
-      checkDecision({ ...decision, blockingLevel: "ACCOUNT" }, expected);
-    }).toThrow('decision run-rejected-1 outcome: expected [false,"MAX_UNITS_PER_REQUEST","USER"]');
+      checkDecision({ ...decision, blockingLevel: right }, rightLevel);
+    }).not.toThrow();
+    expect(() => {
+      checkDecision({ ...decision, blockingLevel: wrong }, rightLevel);
+    }).toThrow(
+      `decision run-rejected-1 outcome: expected [false,"MAX_UNITS_PER_REQUEST","${right}"]`,
+    );
+  });
+
+  it.each([
+    ["a wrong remaining allowance", { remaining: 9_000 }],
+    ["another plan", { planId: "a0000000-0000-4000-8000-000000000002", planName: "Pro" }],
+    ["changed limits", { monthlyAllowance: 35 }],
+  ])("rejects an account level with %s", (_label, change) => {
+    expect(() => {
+      checkDecision({ ...decision, account: { ...decision.account, ...change } }, expected);
+    }).toThrow(`decision run-rejected-1 account ${LEVEL_FIELDS}`);
+  });
+
+  it("expects zero remaining when usage exceeds a reduced allowance", () => {
+    const capped: Plan = {
+      ...STARTER,
+      id: "c0000000-0000-4000-8000-000000000001",
+      monthlyAllowance: 5,
+    };
+
+    expect(() => {
+      checkDecision(
+        { ...decision, account: { ...level(capped, 10), remaining: 0 } },
+        { ...expected, account: { plan: capped, used: 10 } },
+      );
+    }).not.toThrow();
+  });
+});
+
+describe("describeDecision", () => {
+  const level = (planName: string, used: number, remaining: number) => ({
+    planId: "p",
+    planName,
+    monthlyAllowance: used + remaining,
+    maxUnitsPerRequest: 100,
+    used,
+    remaining,
+  });
+  const base = {
+    requestId: "run-1",
+    userId: USER.id,
+    units: 5,
+    month: "2026-10",
+    processedAt: "2026-10-14T10:00:00.000Z",
+    user: level("Premium", 25, 9_975),
+    account: level("Example shared cap", 35, 0),
+  };
+
+  it("prints the outcome with each level's usage and remaining allowance", () => {
+    expect(
+      describeDecision({ ...base, accepted: true, blockingRule: null, blockingLevel: null }),
+    ).toBe(
+      'run-1: ACCEPTED 5 units | user "Premium" 25 used, 9975 remaining | account "Example shared cap" 35 used, 0 remaining',
+    );
+  });
+
+  it("names the blocking rule and level of a rejection", () => {
+    expect(
+      describeDecision({
+        ...base,
+        accepted: false,
+        blockingRule: "MONTHLY_ALLOWANCE",
+        blockingLevel: "ACCOUNT",
+      }),
+    ).toBe(
+      'run-1: REJECTED 5 units by ACCOUNT MONTHLY_ALLOWANCE | user "Premium" 25 used, 9975 remaining | account "Example shared cap" 35 used, 0 remaining',
+    );
+  });
+});
+
+describe("limitsOf", () => {
+  it("shows both rules of a plan", () => {
+    expect(limitsOf(BASIC)).toBe("1000/month, 20/request");
   });
 });
