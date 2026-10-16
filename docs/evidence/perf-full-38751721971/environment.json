@@ -1,0 +1,63 @@
+{
+  "schema": "umqs-bench-environment/1",
+  "recordedAt": "2026-10-15T14:29:35.476Z",
+  "commitSha": "d0cc2b06b9c70170912fddbf838711730978e24d",
+  "profile": "full",
+  "shape": "s2",
+  "node": "v22.23.3",
+  "platform": "linux 6.17.0-1022-azure",
+  "cpuModel": "AMD EPYC 7763 64-Core Processor",
+  "cpuCount": 4,
+  "totalMemoryBytes": 16766414848,
+  "images": {
+    "k6": {
+      "reference": "grafana/k6:2.3.0",
+      "digest": "sha256:9c2dee7f8ed74d317e4027c06a10f169b625638189de8d4555d0b3486a5aeb34"
+    },
+    "postgres": {
+      "reference": "postgres:16.15-alpine",
+      "digest": "sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea"
+    },
+    "nodeBase": {
+      "reference": "node:22.23.3-bookworm-slim",
+      "digest": "sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392"
+    },
+    "api": {
+      "reference": "umqs-bench-api:local (built from d0cc2b06b9c7)",
+      "digest": "sha256:ed2d4e377e7a2db7a4e96a7621f2dc2beb7e9991028d866662b2a657e5655c1b"
+    }
+  },
+  "tools": {
+    "k6": "k6 v2.3.0 (commit/e088784614, go1.27.1, linux/amd64)",
+    "docker": "28.0.4",
+    "compose": "2.38.2",
+    "node": "v22.23.3"
+  },
+  "limits": {
+    "postgres": {
+      "nanoCpus": 2000000000,
+      "memoryBytes": 2147483648
+    },
+    "api": {
+      "nanoCpus": 1000000000,
+      "memoryBytes": 1073741824
+    }
+  },
+  "database": {
+    "version": "PostgreSQL 16.15 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "settings": {
+      "checkpoint_timeout": "300 s",
+      "effective_cache_size": "131072 8kB",
+      "jit": "off",
+      "maintenance_work_mem": "131072 kB",
+      "max_connections": "100",
+      "max_wal_size": "1024 MB",
+      "random_page_cost": "4",
+      "server_version": "16.15",
+      "shared_buffers": "32768 8kB",
+      "shared_preload_libraries": "pg_stat_statements",
+      "synchronous_commit": "on",
+      "work_mem": "4096 kB"
+    }
+  }
+}

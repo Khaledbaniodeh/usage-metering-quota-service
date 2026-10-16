@@ -550,13 +550,13 @@ Every request has a 10 second deadline, enforced with `AbortController`.
 
 ## Running the tests
 
-| Kind           | Command                    | Needs                         | What it proves                                                                    |
-| -------------- | -------------------------- | ----------------------------- | --------------------------------------------------------------------------------- |
-| Unit           | `npm run test:unit`        | Nothing                       | Pure rules, configuration, the HTTP contract with stubs, and the example client   |
-| Client unit    | `npm run test:client`      | Nothing                       | The example client's own behavior (subset of the unit tests)                      |
-| Integration    | `npm run test:integration` | PostgreSQL (`_test` database) | Repositories, transactions, concurrency, isolation, pagination, API over real SQL |
-| End to end     | `npm run test:e2e`         | A running stack               | The real client executable passes the whole workflow and prints no key            |
-| Load (Phase 7) | not implemented yet        | -                             | Throughput, latency and invariants under load                                     |
+| Kind           | Command                                       | Needs                         | What it proves                                                                                       |
+| -------------- | --------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Unit           | `npm run test:unit`                           | Nothing                       | Pure rules, configuration, the HTTP contract with stubs, and the example client                      |
+| Client unit    | `npm run test:client`                         | Nothing                       | The example client's own behavior (subset of the unit tests)                                         |
+| Integration    | `npm run test:integration`                    | PostgreSQL (`_test` database) | Repositories, transactions, concurrency, isolation, pagination, API over real SQL                    |
+| End to end     | `npm run test:e2e`                            | A running stack               | The real client executable passes the whole workflow and prints no key                               |
+| Load (Phase 7) | `perf-smoke` / `perf-full` pull-request label | GitHub Actions                | Throughput, latency and invariants under load; results in [docs/performance.md](docs/performance.md) |
 
 `npm test` runs the unit and integration tests; `npm run check` adds formatting, lint, type-check
 and the build. The end-to-end test is a black-box check through the public API only. It

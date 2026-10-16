@@ -1,0 +1,10 @@
+Limit  (cost=0.43..24.33 rows=21 width=186) (actual time=0.028..0.040 rows=21 loops=1)
+  Buffers: shared hit=5
+  ->  Index Scan Backward using consume_decisions_account_month_seq_idx on consume_decisions  (cost=0.43..106360.69 rows=93448 width=186) (actual time=0.028..0.037 rows=21 loops=1)
+        Index Cond: ((account_id = 'bd415c75-4626-d8a9-82fa-1c4255623239'::uuid) AND (month = '2025-01-01'::date))
+        Filter: (user_id = '29f480e5-b1aa-5457-8552-af3af5b5a199'::uuid)
+        Rows Removed by Filter: 4
+        Buffers: shared hit=5
+Settings: effective_cache_size = '1GB', jit = 'off', plan_cache_mode = 'force_custom_plan'
+Planning Time: 0.126 ms
+Execution Time: 0.078 ms

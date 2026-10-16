@@ -1,0 +1,4509 @@
+{
+  "schema": "umqs-bench-evidence/1",
+  "complete": true,
+  "benchmarkStepFailed": false,
+  "resultsDirectoryPresent": true,
+  "commitSha": "d0cc2b06b9c70170912fddbf838711730978e24d",
+  "profile": "full",
+  "generatedAt": "2026-10-15T15:26:59.407Z",
+  "missing": {
+    "runLabels": [],
+    "files": []
+  },
+  "invalidFiles": [],
+  "k6ExitCodes": {
+    "ab-dist-a-1": 0,
+    "ab-dist-a-2": 0,
+    "ab-dist-a-3": 0,
+    "ab-dist-a-4": 0,
+    "ab-dist-a-5": 0,
+    "ab-hot-a-1": 0,
+    "ab-hot-a-2": 0,
+    "ab-hot-a-3": 0,
+    "ab-hot-a-4": 0,
+    "ab-hot-a-5": 0,
+    "diag-account": 0,
+    "diag-spread": 0,
+    "diag-user": 0,
+    "hist-s2-a-1": 0,
+    "hist-s2-a-2": 0,
+    "hist-s2-a-3": 0,
+    "race-conflicting": 0,
+    "race-identical": 0
+  },
+  "seed": {
+    "schema": "umqs-bench-seed/1",
+    "profile": "full",
+    "shape": "s2",
+    "expectedDecisions": 1498000,
+    "heavyAccountId": "bd415c75-4626-d8a9-82fa-1c4255623239",
+    "heavyUserId": "29f480e5-b1aa-5457-8552-af3af5b5a199",
+    "oldestMonth": "2025-01",
+    "counts": {
+      "accounts": 2,
+      "users": 110,
+      "decisions": 1498000,
+      "rejected": 29952,
+      "heavy_user_decisions": 1200000,
+      "heavy_user_oldest_month": 100000,
+      "heavy_account_oldest_month": 116500,
+      "months": 12,
+      "account_counters": 24,
+      "user_counters": 1320
+    },
+    "timingsMs": {
+      "accounts": 6,
+      "plans": 1,
+      "account plan h": 1,
+      "account plan n": 1,
+      "users": 10,
+      "decisions h 2025-01-01": 16455,
+      "decisions n 2025-01-01": 1189,
+      "decisions h 2025-02-01": 16987,
+      "decisions n 2025-02-01": 1191,
+      "decisions h 2025-03-01": 17159,
+      "decisions n 2025-03-01": 1204,
+      "decisions h 2025-04-01": 17099,
+      "decisions n 2025-04-01": 1186,
+      "decisions h 2025-05-01": 17068,
+      "decisions n 2025-05-01": 1218,
+      "decisions h 2025-06-01": 17067,
+      "decisions n 2025-06-01": 1203,
+      "decisions h 2025-07-01": 17136,
+      "decisions n 2025-07-01": 1187,
+      "decisions h 2025-08-01": 17014,
+      "decisions n 2025-08-01": 1183,
+      "decisions h 2025-09-01": 17131,
+      "decisions n 2025-09-01": 1206,
+      "decisions h 2025-10-01": 17172,
+      "decisions n 2025-10-01": 1223,
+      "decisions h 2025-11-01": 17285,
+      "decisions n 2025-11-01": 1185,
+      "decisions h 2025-12-01": 17041,
+      "decisions n 2025-12-01": 1186,
+      "account counters": 509,
+      "user counters": 477,
+      "insertTotal": 219982,
+      "vacuumAnalyzeCheckpoint": 1742
+    }
+  },
+  "footprints": {
+    "footprint-after-seed": {
+      "schema": "umqs-bench-footprint/1",
+      "label": "after-seed",
+      "measuredAt": "2026-10-15T14:33:29.331Z",
+      "databaseBytes": 970169367,
+      "relationBytes": 962142208,
+      "tables": {
+        "account_monthly_usage": {
+          "total": 57344,
+          "heap": 8192,
+          "indexes": 16384
+        },
+        "accounts": {
+          "total": 81920,
+          "heap": 8192,
+          "indexes": 32768
+        },
+        "consume_decisions": {
+          "total": 961519616,
+          "heap": 360931328,
+          "indexes": 600457216
+        },
+        "plans": {
+          "total": 114688,
+          "heap": 8192,
+          "indexes": 65536
+        },
+        "user_monthly_usage": {
+          "total": 262144,
+          "heap": 106496,
+          "indexes": 122880
+        },
+        "users": {
+          "total": 106496,
+          "heap": 16384,
+          "indexes": 49152
+        }
+      },
+      "consumeDecisionIndexes": {
+        "consume_decisions_account_id_request_id_key": 149110784,
+        "consume_decisions_account_id_seq_key": 102506496,
+        "consume_decisions_account_month_seq_idx": 126091264,
+        "consume_decisions_account_user_seq_idx": 158310400,
+        "consume_decisions_pkey": 64438272
+      },
+      "walLsn": "0/5500C028",
+      "pgWalDirectoryBytes": 1056964608,
+      "disk": {
+        "path": "/",
+        "freeBytes": 89037455360,
+        "totalBytes": 154894188544
+      }
+    },
+    "footprint-after-workloads": {
+      "schema": "umqs-bench-footprint/1",
+      "label": "after-workloads",
+      "measuredAt": "2026-10-15T15:26:58.701Z",
+      "databaseBytes": 1049705495,
+      "relationBytes": 1041334272,
+      "tables": {
+        "account_monthly_usage": {
+          "total": 204800,
+          "heap": 131072,
+          "indexes": 40960
+        },
+        "accounts": {
+          "total": 204800,
+          "heap": 65536,
+          "indexes": 98304
+        },
+        "consume_decisions": {
+          "total": 1036541952,
+          "heap": 389414912,
+          "indexes": 646987776
+        },
+        "plans": {
+          "total": 229376,
+          "heap": 49152,
+          "indexes": 139264
+        },
+        "user_monthly_usage": {
+          "total": 1630208,
+          "heap": 884736,
+          "indexes": 712704
+        },
+        "users": {
+          "total": 2523136,
+          "heap": 1073152,
+          "indexes": 1409024
+        }
+      },
+      "consumeDecisionIndexes": {
+        "consume_decisions_account_id_request_id_key": 162045952,
+        "consume_decisions_account_id_seq_key": 110551040,
+        "consume_decisions_account_month_seq_idx": 135970816,
+        "consume_decisions_account_user_seq_idx": 168607744,
+        "consume_decisions_pkey": 69812224
+      },
+      "walLsn": "0/73DE0BA8",
+      "pgWalDirectoryBytes": 570425344,
+      "disk": {
+        "path": "/",
+        "freeBytes": 89348743168,
+        "totalBytes": 154894188544
+      }
+    },
+    "footprint-before-seed": {
+      "schema": "umqs-bench-footprint/1",
+      "label": "before-seed",
+      "measuredAt": "2026-10-15T14:29:35.725Z",
+      "databaseBytes": 8207383,
+      "relationBytes": 204800,
+      "tables": {
+        "account_monthly_usage": {
+          "total": 8192,
+          "heap": 0,
+          "indexes": 8192
+        },
+        "accounts": {
+          "total": 24576,
+          "heap": 0,
+          "indexes": 16384
+        },
+        "consume_decisions": {
+          "total": 49152,
+          "heap": 0,
+          "indexes": 40960
+        },
+        "plans": {
+          "total": 73728,
+          "heap": 8192,
+          "indexes": 57344
+        },
+        "user_monthly_usage": {
+          "total": 16384,
+          "heap": 0,
+          "indexes": 16384
+        },
+        "users": {
+          "total": 32768,
+          "heap": 0,
+          "indexes": 24576
+        }
+      },
+      "consumeDecisionIndexes": {
+        "consume_decisions_account_id_request_id_key": 8192,
+        "consume_decisions_account_id_seq_key": 8192,
+        "consume_decisions_account_month_seq_idx": 8192,
+        "consume_decisions_account_user_seq_idx": 8192,
+        "consume_decisions_pkey": 8192
+      },
+      "walLsn": "0/19A1758",
+      "pgWalDirectoryBytes": 16777216,
+      "disk": {
+        "path": "/",
+        "freeBytes": 91040079872,
+        "totalBytes": 154894188544
+      }
+    }
+  },
+  "diskProjection": {
+    "schema": "umqs-bench-disk/1",
+    "mode": "enforce",
+    "measured": {
+      "seededRows": 14980,
+      "emptyDatabaseBytes": 8207383,
+      "relationBytesBefore": 204800,
+      "relationBytesAfter": 10215424,
+      "walBytes": 13661240,
+      "dockerNonVolumeBytesBefore": 2730378499,
+      "dockerNonVolumeBytesAfter": 3024608194,
+      "outputBytes": 3986
+    },
+    "projection": {
+      "fullRows": 1498000,
+      "bytesPerRow": 668.2659546061416,
+      "walBytesPerRow": 911.9652870493992,
+      "dataBytes": 1009269783.0000001,
+      "walBytes": 1366124000,
+      "fixedBytes": 294269555,
+      "baseBytes": 3678933121,
+      "projectedPeakBytes": 7357866242,
+      "requiredFreeBytes": 12726575362
+    },
+    "verdict": {
+      "allowed": true,
+      "freeBytes": 91004821504,
+      "requiredFreeBytes": 12726575362,
+      "message": "allowed: projected peak 6.85 GiB + reserve 5.00 GiB = 11.85 GiB required, 84.75 GiB free"
+    }
+  },
+  "diskSamples": {
+    "samples": 1718,
+    "minFreeBytes": 88929878016,
+    "intervalSeconds": 2
+  },
+  "dockerUsage": {
+    "before": {
+      "totalBytes": 2730378499,
+      "volumeBytes": 0,
+      "nonVolumeBytes": 2730378499
+    },
+    "after-seed": {
+      "totalBytes": 5323227396,
+      "volumeBytes": 2050819645,
+      "nonVolumeBytes": 3272407751
+    },
+    "after-workloads": {
+      "totalBytes": 5013215031,
+      "volumeBytes": 1643833525,
+      "nonVolumeBytes": 3369381506
+    }
+  },
+  "explains": {
+    "s2-a": {
+      "query": {
+        "sql": "SELECT id, request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, month, processed_at\n     FROM consume_decisions\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     ORDER BY seq DESC\n     LIMIT $4",
+        "params": [
+          "bd415c75-4626-d8a9-82fa-1c4255623239",
+          "29f480e5-b1aa-5457-8552-af3af5b5a199",
+          "2025-01-01",
+          21
+        ],
+        "limit": 20
+      },
+      "firstAfterRestart": {
+        "planningMs": 2.408,
+        "executionMs": 0.116,
+        "actualRows": 21,
+        "rowsRemovedByFilter": 4,
+        "rowsRemovedByIndexRecheck": 0,
+        "sharedHitBlocks": 0,
+        "sharedReadBlocks": 5,
+        "indexes": [
+          "consume_decisions_account_month_seq_idx"
+        ],
+        "scans": [
+          "Index Scan Backward on consume_decisions_account_month_seq_idx"
+        ],
+        "sorts": false
+      },
+      "warm": [
+        {
+          "planningMs": 0.108,
+          "executionMs": 0.062,
+          "actualRows": 21,
+          "rowsRemovedByFilter": 4,
+          "rowsRemovedByIndexRecheck": 0,
+          "sharedHitBlocks": 5,
+          "sharedReadBlocks": 0,
+          "indexes": [
+            "consume_decisions_account_month_seq_idx"
+          ],
+          "scans": [
+            "Index Scan Backward on consume_decisions_account_month_seq_idx"
+          ],
+          "sorts": false
+        },
+        {
+          "planningMs": 0.098,
+          "executionMs": 0.065,
+          "actualRows": 21,
+          "rowsRemovedByFilter": 4,
+          "rowsRemovedByIndexRecheck": 0,
+          "sharedHitBlocks": 5,
+          "sharedReadBlocks": 0,
+          "indexes": [
+            "consume_decisions_account_month_seq_idx"
+          ],
+          "scans": [
+            "Index Scan Backward on consume_decisions_account_month_seq_idx"
+          ],
+          "sorts": false
+        },
+        {
+          "planningMs": 0.121,
+          "executionMs": 0.106,
+          "actualRows": 21,
+          "rowsRemovedByFilter": 4,
+          "rowsRemovedByIndexRecheck": 0,
+          "sharedHitBlocks": 5,
+          "sharedReadBlocks": 0,
+          "indexes": [
+            "consume_decisions_account_month_seq_idx"
+          ],
+          "scans": [
+            "Index Scan Backward on consume_decisions_account_month_seq_idx"
+          ],
+          "sorts": false
+        },
+        {
+          "planningMs": 0.111,
+          "executionMs": 0.07,
+          "actualRows": 21,
+          "rowsRemovedByFilter": 4,
+          "rowsRemovedByIndexRecheck": 0,
+          "sharedHitBlocks": 5,
+          "sharedReadBlocks": 0,
+          "indexes": [
+            "consume_decisions_account_month_seq_idx"
+          ],
+          "scans": [
+            "Index Scan Backward on consume_decisions_account_month_seq_idx"
+          ],
+          "sorts": false
+        },
+        {
+          "planningMs": 0.107,
+          "executionMs": 0.09,
+          "actualRows": 21,
+          "rowsRemovedByFilter": 4,
+          "rowsRemovedByIndexRecheck": 0,
+          "sharedHitBlocks": 5,
+          "sharedReadBlocks": 0,
+          "indexes": [
+            "consume_decisions_account_month_seq_idx"
+          ],
+          "scans": [
+            "Index Scan Backward on consume_decisions_account_month_seq_idx"
+          ],
+          "sorts": false
+        }
+      ]
+    }
+  },
+  "k6Runs": [
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "distributed",
+      "runLabel": "ab-dist-a-1",
+      "gating": true,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 6001,
+        "droppedIterations": 0,
+        "httpRequests": 6601,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 6001,
+          "min": 4.027506,
+          "med": 5.169097,
+          "avg": 5.271169146475586,
+          "p90": 5.87269,
+          "p95": 6.193827,
+          "p99": 7.653372,
+          "max": 24.18436
+        },
+        "outcomes": {
+          "ok": 6001,
+          "accepted": 5701,
+          "rejected": 300,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 600,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 50,
+          "seconds": 120,
+          "offeredIterations": 6000,
+          "achievedIterations": 6001,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 6001,
+            "min": 4.027506,
+            "med": 5.169097,
+            "avg": 5.271169146475586,
+            "p90": 5.87269,
+            "p95": 6.193827,
+            "p99": 7.653372,
+            "max": 24.18436
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "ab-dist-a-1.",
+        "expectedDecisions": 7502,
+        "expectedAccepted": 7127,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "distributed",
+      "runLabel": "ab-dist-a-2",
+      "gating": true,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 6001,
+        "droppedIterations": 0,
+        "httpRequests": 6601,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 6001,
+          "min": 4.099706,
+          "med": 4.928307,
+          "avg": 5.041727283619395,
+          "p90": 5.51579,
+          "p95": 5.836955,
+          "p99": 7.293097,
+          "max": 17.048308
+        },
+        "outcomes": {
+          "ok": 6001,
+          "accepted": 5701,
+          "rejected": 300,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 600,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 50,
+          "seconds": 120,
+          "offeredIterations": 6000,
+          "achievedIterations": 6001,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 6001,
+            "min": 4.099706,
+            "med": 4.928307,
+            "avg": 5.041727283619395,
+            "p90": 5.51579,
+            "p95": 5.836955,
+            "p99": 7.293097,
+            "max": 17.048308
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "ab-dist-a-2.",
+        "expectedDecisions": 7502,
+        "expectedAccepted": 7127,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "distributed",
+      "runLabel": "ab-dist-a-3",
+      "gating": true,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 6001,
+        "droppedIterations": 0,
+        "httpRequests": 6601,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 6001,
+          "min": 4.082938,
+          "med": 5.012999,
+          "avg": 5.125738084485917,
+          "p90": 5.64452,
+          "p95": 5.998594,
+          "p99": 7.395889,
+          "max": 28.757562
+        },
+        "outcomes": {
+          "ok": 6001,
+          "accepted": 5701,
+          "rejected": 300,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 600,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 50,
+          "seconds": 120,
+          "offeredIterations": 6000,
+          "achievedIterations": 6001,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 6001,
+            "min": 4.082938,
+            "med": 5.012999,
+            "avg": 5.125738084485917,
+            "p90": 5.64452,
+            "p95": 5.998594,
+            "p99": 7.395889,
+            "max": 28.757562
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "ab-dist-a-3.",
+        "expectedDecisions": 7501,
+        "expectedAccepted": 7126,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "distributed",
+      "runLabel": "ab-dist-a-4",
+      "gating": true,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 6001,
+        "droppedIterations": 0,
+        "httpRequests": 6601,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 6001,
+          "min": 4.080656,
+          "med": 4.955952,
+          "avg": 5.084405318946838,
+          "p90": 5.510483,
+          "p95": 5.797122,
+          "p99": 7.250685,
+          "max": 28.643618
+        },
+        "outcomes": {
+          "ok": 6001,
+          "accepted": 5701,
+          "rejected": 300,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 600,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 50,
+          "seconds": 120,
+          "offeredIterations": 6000,
+          "achievedIterations": 6001,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 6001,
+            "min": 4.080656,
+            "med": 4.955952,
+            "avg": 5.084405318946838,
+            "p90": 5.510483,
+            "p95": 5.797122,
+            "p99": 7.250685,
+            "max": 28.643618
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "ab-dist-a-4.",
+        "expectedDecisions": 7502,
+        "expectedAccepted": 7127,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "distributed",
+      "runLabel": "ab-dist-a-5",
+      "gating": true,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 6001,
+        "droppedIterations": 0,
+        "httpRequests": 6601,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 6001,
+          "min": 4.180274,
+          "med": 5.034872,
+          "avg": 5.1558935077487025,
+          "p90": 5.707024,
+          "p95": 6.04472,
+          "p99": 7.239735,
+          "max": 19.188658
+        },
+        "outcomes": {
+          "ok": 6001,
+          "accepted": 5701,
+          "rejected": 300,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 600,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 50,
+          "seconds": 120,
+          "offeredIterations": 6000,
+          "achievedIterations": 6001,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 6001,
+            "min": 4.180274,
+            "med": 5.034872,
+            "avg": 5.1558935077487025,
+            "p90": 5.707024,
+            "p95": 6.04472,
+            "p99": 7.239735,
+            "max": 19.188658
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "ab-dist-a-5.",
+        "expectedDecisions": 7502,
+        "expectedAccepted": 7127,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "hot-account",
+      "runLabel": "ab-hot-a-1",
+      "gating": true,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 2401,
+        "droppedIterations": 0,
+        "httpRequests": 2641,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 2401,
+          "min": 4.286025,
+          "med": 6.001343,
+          "avg": 6.0340996955435156,
+          "p90": 6.763421,
+          "p95": 7.006607,
+          "p99": 8.396727,
+          "max": 22.322096
+        },
+        "outcomes": {
+          "ok": 2401,
+          "accepted": 2281,
+          "rejected": 120,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 240,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 20,
+          "seconds": 120,
+          "offeredIterations": 2400,
+          "achievedIterations": 2401,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 2401,
+            "min": 4.286025,
+            "med": 6.001343,
+            "avg": 6.0340996955435156,
+            "p90": 6.763421,
+            "p95": 7.006607,
+            "p99": 8.396727,
+            "max": 22.322096
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "ab-hot-a-1.",
+        "expectedDecisions": 3002,
+        "expectedAccepted": 2852,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "hot-account",
+      "runLabel": "ab-hot-a-2",
+      "gating": true,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 2401,
+        "droppedIterations": 0,
+        "httpRequests": 2641,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 2401,
+          "min": 4.364676,
+          "med": 5.716147,
+          "avg": 5.816868895876703,
+          "p90": 6.565898,
+          "p95": 6.927135,
+          "p99": 8.49447,
+          "max": 21.698056
+        },
+        "outcomes": {
+          "ok": 2401,
+          "accepted": 2281,
+          "rejected": 120,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 240,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 20,
+          "seconds": 120,
+          "offeredIterations": 2400,
+          "achievedIterations": 2401,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 2401,
+            "min": 4.364676,
+            "med": 5.716147,
+            "avg": 5.816868895876703,
+            "p90": 6.565898,
+            "p95": 6.927135,
+            "p99": 8.49447,
+            "max": 21.698056
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "ab-hot-a-2.",
+        "expectedDecisions": 3002,
+        "expectedAccepted": 2852,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "hot-account",
+      "runLabel": "ab-hot-a-3",
+      "gating": true,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 2401,
+        "droppedIterations": 0,
+        "httpRequests": 2641,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 2401,
+          "min": 4.672485,
+          "med": 5.744809,
+          "avg": 5.8785370195751705,
+          "p90": 6.451262,
+          "p95": 6.799608,
+          "p99": 8.292176,
+          "max": 85.194935
+        },
+        "outcomes": {
+          "ok": 2401,
+          "accepted": 2281,
+          "rejected": 120,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 240,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 20,
+          "seconds": 120,
+          "offeredIterations": 2400,
+          "achievedIterations": 2401,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 2401,
+            "min": 4.672485,
+            "med": 5.744809,
+            "avg": 5.8785370195751705,
+            "p90": 6.451262,
+            "p95": 6.799608,
+            "p99": 8.292176,
+            "max": 85.194935
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "ab-hot-a-3.",
+        "expectedDecisions": 3002,
+        "expectedAccepted": 2852,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "hot-account",
+      "runLabel": "ab-hot-a-4",
+      "gating": true,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 2400,
+        "droppedIterations": 0,
+        "httpRequests": 2640,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 2400,
+          "min": 4.4203,
+          "med": 5.6531210000000005,
+          "avg": 5.731825359166667,
+          "p90": 6.3623822,
+          "p95": 6.685665549999999,
+          "p99": 7.943797029999992,
+          "max": 20.795318
+        },
+        "outcomes": {
+          "ok": 2400,
+          "accepted": 2280,
+          "rejected": 120,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 240,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 20,
+          "seconds": 120,
+          "offeredIterations": 2400,
+          "achievedIterations": 2400,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 2400,
+            "min": 4.4203,
+            "med": 5.6531210000000005,
+            "avg": 5.731825359166667,
+            "p90": 6.3623822,
+            "p95": 6.685665549999999,
+            "p99": 7.943797029999992,
+            "max": 20.795318
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "ab-hot-a-4.",
+        "expectedDecisions": 3001,
+        "expectedAccepted": 2851,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "hot-account",
+      "runLabel": "ab-hot-a-5",
+      "gating": true,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 2400,
+        "droppedIterations": 0,
+        "httpRequests": 2640,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 2400,
+          "min": 4.499311,
+          "med": 5.602508,
+          "avg": 5.703682801249998,
+          "p90": 6.2549721,
+          "p95": 6.549820049999999,
+          "p99": 8.026813489999986,
+          "max": 21.124941
+        },
+        "outcomes": {
+          "ok": 2400,
+          "accepted": 2280,
+          "rejected": 120,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 240,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 20,
+          "seconds": 120,
+          "offeredIterations": 2400,
+          "achievedIterations": 2400,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 2400,
+            "min": 4.499311,
+            "med": 5.602508,
+            "avg": 5.703682801249998,
+            "p90": 6.2549721,
+            "p95": 6.549820049999999,
+            "p99": 8.026813489999986,
+            "max": 21.124941
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "ab-hot-a-5.",
+        "expectedDecisions": 3001,
+        "expectedAccepted": 2851,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "contention-account",
+      "runLabel": "diag-account",
+      "gating": false,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 19953,
+        "droppedIterations": 2550,
+        "httpRequests": 19953,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 19953,
+          "min": 4.545,
+          "med": 8.21892,
+          "avg": 1686.4030267611897,
+          "p90": 6229.566299,
+          "p95": 6456.5316386,
+          "p99": 6583.4584962,
+          "max": 6649.241024
+        },
+        "outcomes": {
+          "ok": 19953,
+          "accepted": 18956,
+          "rejected": 997,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 0,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 25,
+          "seconds": 60,
+          "offeredIterations": 1500,
+          "achievedIterations": 1500,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 1500,
+            "min": 4.545,
+            "med": 5.714385500000001,
+            "avg": 5.785280267333327,
+            "p90": 6.3278334,
+            "p95": 6.67013795,
+            "p99": 7.74265396,
+            "max": 22.033388
+          }
+        },
+        {
+          "name": "measure-2",
+          "rate": 50,
+          "seconds": 60,
+          "offeredIterations": 3000,
+          "achievedIterations": 3001,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 3001,
+            "min": 4.94085,
+            "med": 6.116834,
+            "avg": 6.207157362212603,
+            "p90": 6.858131,
+            "p95": 7.154025,
+            "p99": 8.693094,
+            "max": 19.487142
+          }
+        },
+        {
+          "name": "measure-3",
+          "rate": 100,
+          "seconds": 60,
+          "offeredIterations": 6000,
+          "achievedIterations": 6001,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 6001,
+            "min": 5.435063,
+            "med": 7.193533,
+            "avg": 7.29387407482085,
+            "p90": 8.090915,
+            "p95": 8.440973,
+            "p99": 10.988692,
+            "max": 45.623758
+          }
+        },
+        {
+          "name": "measure-4",
+          "rate": 200,
+          "seconds": 60,
+          "offeredIterations": 12000,
+          "achievedIterations": 9451,
+          "droppedIterations": 2550,
+          "primaryDurationMs": {
+            "count": 9451,
+            "min": 13.292747,
+            "med": 3558.73638,
+            "avg": 3552.8222891755404,
+            "p90": 6468.277639,
+            "p95": 6562.393729,
+            "p99": 6591.465626,
+            "max": 6649.241024
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "diag-account.",
+        "expectedDecisions": 20704,
+        "expectedAccepted": 19670,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "contention-spread",
+      "runLabel": "diag-spread",
+      "gating": false,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 22504,
+        "droppedIterations": 0,
+        "httpRequests": 22504,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 22504,
+          "min": 4.011212,
+          "med": 4.999141,
+          "avg": 5.2807304038393275,
+          "p90": 5.6386724,
+          "p95": 6.070576049999998,
+          "p99": 8.830734690000005,
+          "max": 112.554435
+        },
+        "outcomes": {
+          "ok": 22504,
+          "accepted": 21379,
+          "rejected": 1125,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 0,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 25,
+          "seconds": 60,
+          "offeredIterations": 1500,
+          "achievedIterations": 1501,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 1501,
+            "min": 4.144566,
+            "med": 5.036002,
+            "avg": 5.140457614257172,
+            "p90": 5.614407,
+            "p95": 5.995492,
+            "p99": 7.72262,
+            "max": 11.281134
+          }
+        },
+        {
+          "name": "measure-2",
+          "rate": 50,
+          "seconds": 60,
+          "offeredIterations": 3000,
+          "achievedIterations": 3001,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 3001,
+            "min": 4.13476,
+            "med": 5.086583,
+            "avg": 5.163382751082967,
+            "p90": 5.683506,
+            "p95": 5.963729,
+            "p99": 7.151408,
+            "max": 26.218909
+          }
+        },
+        {
+          "name": "measure-3",
+          "rate": 100,
+          "seconds": 60,
+          "offeredIterations": 6000,
+          "achievedIterations": 6001,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 6001,
+            "min": 4.074697,
+            "med": 4.798114,
+            "avg": 4.963276428595229,
+            "p90": 5.317511,
+            "p95": 5.571604,
+            "p99": 7.336084,
+            "max": 36.289765
+          }
+        },
+        {
+          "name": "measure-4",
+          "rate": 200,
+          "seconds": 60,
+          "offeredIterations": 12000,
+          "achievedIterations": 12001,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 12001,
+            "min": 4.011212,
+            "med": 5.072272,
+            "avg": 5.486359190484148,
+            "p90": 5.752749,
+            "p95": 6.46598,
+            "p99": 10.730912,
+            "max": 112.554435
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "diag-spread.",
+        "expectedDecisions": 23255,
+        "expectedAccepted": 22093,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "contention-user",
+      "runLabel": "diag-user",
+      "gating": false,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 20067,
+        "droppedIterations": 2434,
+        "httpRequests": 20067,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 20067,
+          "min": 4.442648,
+          "med": 8.112083,
+          "avg": 1628.239723724074,
+          "p90": 6190.776715200001,
+          "p95": 6457.0469854,
+          "p99": 6601.62457858,
+          "max": 6721.429708
+        },
+        "outcomes": {
+          "ok": 20067,
+          "accepted": 19064,
+          "rejected": 1003,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 0,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 25,
+          "seconds": 60,
+          "offeredIterations": 1500,
+          "achievedIterations": 1500,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 1500,
+            "min": 4.442648,
+            "med": 5.9282825,
+            "avg": 5.989741863333334,
+            "p90": 6.5325491000000016,
+            "p95": 6.82460575,
+            "p99": 8.013307679999999,
+            "max": 10.668662
+          }
+        },
+        {
+          "name": "measure-2",
+          "rate": 50,
+          "seconds": 60,
+          "offeredIterations": 3000,
+          "achievedIterations": 3001,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 3001,
+            "min": 5.169559,
+            "med": 6.375658,
+            "avg": 6.519652873375555,
+            "p90": 7.067177,
+            "p95": 7.567147,
+            "p99": 9.537297,
+            "max": 22.970803
+          }
+        },
+        {
+          "name": "measure-3",
+          "rate": 100,
+          "seconds": 60,
+          "offeredIterations": 6000,
+          "achievedIterations": 6000,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 6000,
+            "min": 5.401279,
+            "med": 6.9547495,
+            "avg": 7.066147286166683,
+            "p90": 7.8733632,
+            "p95": 8.22601035,
+            "p99": 10.045420260000002,
+            "max": 53.665507
+          }
+        },
+        {
+          "name": "measure-4",
+          "rate": 200,
+          "seconds": 60,
+          "offeredIterations": 12000,
+          "achievedIterations": 9566,
+          "droppedIterations": 2434,
+          "primaryDurationMs": {
+            "count": 9566,
+            "min": 8.040157,
+            "med": 3379.529189,
+            "avg": 3408.2102823736145,
+            "p90": 6462.46869,
+            "p95": 6537.7835705,
+            "p99": 6628.9511075,
+            "max": 6721.429708
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "diag-user.",
+        "expectedDecisions": 20818,
+        "expectedAccepted": 19778,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "history",
+      "runLabel": "hist-s2-a-1",
+      "gating": false,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 2401,
+        "droppedIterations": 0,
+        "httpRequests": 2401,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "read",
+        "primaryDurationMs": {
+          "count": 2401,
+          "min": 1.756579,
+          "med": 2.301305,
+          "avg": 2.313776931695125,
+          "p90": 2.520234,
+          "p95": 2.641738,
+          "p99": 3.225322,
+          "max": 12.901
+        },
+        "outcomes": {
+          "ok": 2401,
+          "accepted": 0,
+          "rejected": 0,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 0,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 20,
+          "seconds": 120,
+          "offeredIterations": 2400,
+          "achievedIterations": 2401,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 2401,
+            "min": 1.756579,
+            "med": 2.301305,
+            "avg": 2.313776931695125,
+            "p90": 2.520234,
+            "p95": 2.641738,
+            "p99": 3.225322,
+            "max": 12.901
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "hist-s2-a-1.",
+        "expectedDecisions": 0,
+        "expectedAccepted": 0,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "history",
+      "runLabel": "hist-s2-a-2",
+      "gating": false,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 2400,
+        "droppedIterations": 0,
+        "httpRequests": 2400,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "read",
+        "primaryDurationMs": {
+          "count": 2400,
+          "min": 1.570541,
+          "med": 1.9406919999999999,
+          "avg": 1.9885537562500009,
+          "p90": 2.2874488,
+          "p95": 2.35838075,
+          "p99": 2.769005989999996,
+          "max": 12.15042
+        },
+        "outcomes": {
+          "ok": 2400,
+          "accepted": 0,
+          "rejected": 0,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 0,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 20,
+          "seconds": 120,
+          "offeredIterations": 2400,
+          "achievedIterations": 2400,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 2400,
+            "min": 1.570541,
+            "med": 1.9406919999999999,
+            "avg": 1.9885537562500009,
+            "p90": 2.2874488,
+            "p95": 2.35838075,
+            "p99": 2.769005989999996,
+            "max": 12.15042
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "hist-s2-a-2.",
+        "expectedDecisions": 0,
+        "expectedAccepted": 0,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "history",
+      "runLabel": "hist-s2-a-3",
+      "gating": false,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 2401,
+        "droppedIterations": 0,
+        "httpRequests": 2401,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "read",
+        "primaryDurationMs": {
+          "count": 2401,
+          "min": 1.483273,
+          "med": 2.150396,
+          "avg": 2.095563861307789,
+          "p90": 2.310052,
+          "p95": 2.359047,
+          "p99": 2.627253,
+          "max": 12.102244
+        },
+        "outcomes": {
+          "ok": 2401,
+          "accepted": 0,
+          "rejected": 0,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 0,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 20,
+          "seconds": 120,
+          "offeredIterations": 2400,
+          "achievedIterations": 2401,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 2401,
+            "min": 1.483273,
+            "med": 2.150396,
+            "avg": 2.095563861307789,
+            "p90": 2.310052,
+            "p95": 2.359047,
+            "p99": 2.627253,
+            "max": 12.102244
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "hist-s2-a-3.",
+        "expectedDecisions": 0,
+        "expectedAccepted": 0,
+        "batchesOk": 0,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "race-conflicting",
+      "runLabel": "race-conflicting",
+      "gating": false,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 1201,
+        "droppedIterations": 0,
+        "httpRequests": 3603,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 3603,
+          "min": 5.577493,
+          "med": 7.104338,
+          "avg": 7.214273009991665,
+          "p90": 8.3070342,
+          "p95": 8.6113059,
+          "p99": 10.4335357,
+          "max": 31.635728
+        },
+        "outcomes": {
+          "ok": 1201,
+          "accepted": 1201,
+          "rejected": 0,
+          "busyRetry": 0,
+          "conflict": 2402,
+          "unexpected": 0,
+          "replayMatch": 0,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 10,
+          "seconds": 120,
+          "offeredIterations": 1200,
+          "achievedIterations": 1201,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 3603,
+            "min": 5.577493,
+            "med": 7.104338,
+            "avg": 7.214273009991665,
+            "p90": 8.3070342,
+            "p95": 8.6113059,
+            "p99": 10.4335357,
+            "max": 31.635728
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "race-conflicting.",
+        "expectedDecisions": 1502,
+        "expectedAccepted": 1502,
+        "batchesOk": 1502,
+        "batchesBad": 0
+      }
+    },
+    {
+      "schema": "umqs-bench-k6/1",
+      "workload": "race-identical",
+      "runLabel": "race-identical",
+      "gating": false,
+      "thresholdsPassed": true,
+      "measured": {
+        "iterations": 1201,
+        "droppedIterations": 0,
+        "httpRequests": 3603,
+        "httpFailedRate": 0,
+        "checksRate": 1,
+        "primaryKind": "new",
+        "primaryDurationMs": {
+          "count": 3603,
+          "min": 5.304556,
+          "med": 7.571217,
+          "avg": 7.634807388842631,
+          "p90": 8.8250748,
+          "p95": 9.1680134,
+          "p99": 11.216775700000003,
+          "max": 32.708162
+        },
+        "outcomes": {
+          "ok": 3603,
+          "accepted": 1141,
+          "rejected": 0,
+          "busyRetry": 0,
+          "conflict": 0,
+          "unexpected": 0,
+          "replayMatch": 1201,
+          "replayMismatch": 0,
+          "batchBad": 0
+        }
+      },
+      "stages": [
+        {
+          "name": "measure-1",
+          "rate": 10,
+          "seconds": 120,
+          "offeredIterations": 1200,
+          "achievedIterations": 1201,
+          "droppedIterations": 0,
+          "primaryDurationMs": {
+            "count": 3603,
+            "min": 5.304556,
+            "med": 7.571217,
+            "avg": 7.634807388842631,
+            "p90": 8.8250748,
+            "p95": 9.1680134,
+            "p99": 11.216775700000003,
+            "max": 32.708162
+          }
+        }
+      ],
+      "manifest": {
+        "requestIdPrefix": "race-identical.",
+        "expectedDecisions": 1502,
+        "expectedAccepted": 1427,
+        "batchesOk": 1502,
+        "batchesBad": 0
+      }
+    }
+  ],
+  "invariants": {
+    "ab-dist-a-1": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "ab-dist-a-1",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 7502,
+              "actual": 7502,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 7127,
+              "actual": 7127,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "ab-dist-a-2": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "ab-dist-a-2",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 7502,
+              "actual": 7502,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 7127,
+              "actual": 7127,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "ab-dist-a-3": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "ab-dist-a-3",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 7501,
+              "actual": 7501,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 7126,
+              "actual": 7126,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "ab-dist-a-4": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "ab-dist-a-4",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 7502,
+              "actual": 7502,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 7127,
+              "actual": 7127,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "ab-dist-a-5": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "ab-dist-a-5",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 7502,
+              "actual": 7502,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 7127,
+              "actual": 7127,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "ab-hot-a-1": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "ab-hot-a-1",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 3002,
+              "actual": 3002,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 2852,
+              "actual": 2852,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "ab-hot-a-2": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "ab-hot-a-2",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 3002,
+              "actual": 3002,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 2852,
+              "actual": 2852,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "ab-hot-a-3": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "ab-hot-a-3",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 3002,
+              "actual": 3002,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 2852,
+              "actual": 2852,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "ab-hot-a-4": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "ab-hot-a-4",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 3001,
+              "actual": 3001,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 2851,
+              "actual": 2851,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "ab-hot-a-5": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "ab-hot-a-5",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 3001,
+              "actual": 3001,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 2851,
+              "actual": 2851,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "after-seed": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": []
+    },
+    "diag-account": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "diag-account",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 20704,
+              "actual": 20704,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 19670,
+              "actual": 19670,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "diag-spread": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "diag-spread",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 23255,
+              "actual": 23255,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 22093,
+              "actual": 22093,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "diag-user": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "diag-user",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 20818,
+              "actual": 20818,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 19778,
+              "actual": 19778,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "race-conflicting": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "race-conflicting",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 1502,
+              "actual": 1502,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 1502,
+              "actual": 1502,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "race-identical": {
+      "passed": true,
+      "violations": {
+        "negativeUsage": 0,
+        "accountCounterMismatch": 0,
+        "userCounterMismatch": 0,
+        "acceptedWithoutCounter": 0,
+        "accountSerializationBreak": 0,
+        "userSerializationBreak": 0,
+        "acceptedOverLimit": 0,
+        "unjustifiedRejection": 0,
+        "rejectionNotFirstRule": 0,
+        "duplicateRequestIds": 0,
+        "crossTenantDecisions": 0,
+        "crossTenantUserCounters": 0,
+        "monthNotUtcMonthOfProcessedAt": 0
+      },
+      "manifests": [
+        {
+          "runLabel": "race-identical",
+          "checks": [
+            {
+              "name": "stored decisions = decided request IDs",
+              "expected": 1502,
+              "actual": 1502,
+              "passed": true
+            },
+            {
+              "name": "stored accepted decisions = accepted responses",
+              "expected": 1427,
+              "actual": 1427,
+              "passed": true
+            },
+            {
+              "name": "no race batch with an unexpected outcome",
+              "expected": 0,
+              "actual": 0,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "pgStatStatements": {
+    "ab-dist-a-1": [
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 7502,
+        "total_ms": 2601.843,
+        "mean_ms": 0.347,
+        "rows": 7502,
+        "shared_blks_hit": 222341,
+        "shared_blks_read": 4820
+      },
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 15754,
+        "total_ms": 1055.596,
+        "mean_ms": 0.067,
+        "rows": 750,
+        "shared_blks_hit": 1226215,
+        "shared_blks_read": 6
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 7502,
+        "total_ms": 482.771,
+        "mean_ms": 0.064,
+        "rows": 1000,
+        "shared_blks_hit": 32554,
+        "shared_blks_read": 20
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 7502,
+        "total_ms": 384.818,
+        "mean_ms": 0.051,
+        "rows": 50,
+        "shared_blks_hit": 15391,
+        "shared_blks_read": 7
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 7127,
+        "total_ms": 361.695,
+        "mean_ms": 0.051,
+        "rows": 7127,
+        "shared_blks_hit": 69171,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 7502,
+        "total_ms": 301.685,
+        "mean_ms": 0.04,
+        "rows": 7502,
+        "shared_blks_hit": 45678,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 7127,
+        "total_ms": 226.789,
+        "mean_ms": 0.032,
+        "rows": 7127,
+        "shared_blks_hit": 28712,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 7502,
+        "total_ms": 216.945,
+        "mean_ms": 0.029,
+        "rows": 7502,
+        "shared_blks_hit": 51775,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 9352,
+        "total_ms": 125.489,
+        "mean_ms": 0.013,
+        "rows": 9352,
+        "shared_blks_hit": 9352,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 7502,
+        "total_ms": 117.8,
+        "mean_ms": 0.016,
+        "rows": 7502,
+        "shared_blks_hit": 15006,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 1000,
+        "total_ms": 93.137,
+        "mean_ms": 0.093,
+        "rows": 1000,
+        "shared_blks_hit": 14708,
+        "shared_blks_read": 12
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 7502,
+        "total_ms": 44.717,
+        "mean_ms": 0.006,
+        "rows": 7502,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 7502,
+        "total_ms": 33.356,
+        "mean_ms": 0.004,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO accounts (id, name, api_key_hash, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4,",
+        "calls": 50,
+        "total_ms": 6.721,
+        "mean_ms": 0.134,
+        "rows": 50,
+        "shared_blks_hit": 378,
+        "shared_blks_read": 13
+      },
+      {
+        "query": "INSERT INTO plans (id, code, owner_account_id, scope, name, monthly_allowance,\n                        max_units_per_request, created_at, updated_at)\n     VALUES ($1, $8, $2, $3, $4, $5, $6, $7, $7)\n     RETURNING id, code, name, scope, monthly_allowance, max_units_per_request, created_at, updated_a",
+        "calls": 50,
+        "total_ms": 5.806,
+        "mean_ms": 0.116,
+        "rows": 50,
+        "shared_blks_hit": 403,
+        "shared_blks_read": 8
+      }
+    ],
+    "ab-dist-a-2": [
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 7502,
+        "total_ms": 2479.153,
+        "mean_ms": 0.33,
+        "rows": 7502,
+        "shared_blks_hit": 233167,
+        "shared_blks_read": 4964
+      },
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 15754,
+        "total_ms": 959.084,
+        "mean_ms": 0.061,
+        "rows": 750,
+        "shared_blks_hit": 1225821,
+        "shared_blks_read": 16
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 7502,
+        "total_ms": 716.229,
+        "mean_ms": 0.095,
+        "rows": 7502,
+        "shared_blks_hit": 67962,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 7502,
+        "total_ms": 472.547,
+        "mean_ms": 0.063,
+        "rows": 1000,
+        "shared_blks_hit": 32533,
+        "shared_blks_read": 23
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 7502,
+        "total_ms": 428.931,
+        "mean_ms": 0.057,
+        "rows": 50,
+        "shared_blks_hit": 15341,
+        "shared_blks_read": 7
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 7127,
+        "total_ms": 387.436,
+        "mean_ms": 0.054,
+        "rows": 7127,
+        "shared_blks_hit": 61929,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 7127,
+        "total_ms": 231.026,
+        "mean_ms": 0.032,
+        "rows": 7127,
+        "shared_blks_hit": 28749,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 7502,
+        "total_ms": 212.002,
+        "mean_ms": 0.028,
+        "rows": 7502,
+        "shared_blks_hit": 44177,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 9352,
+        "total_ms": 180.966,
+        "mean_ms": 0.019,
+        "rows": 9352,
+        "shared_blks_hit": 18658,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 7502,
+        "total_ms": 123.354,
+        "mean_ms": 0.016,
+        "rows": 7502,
+        "shared_blks_hit": 15007,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 1000,
+        "total_ms": 100.491,
+        "mean_ms": 0.1,
+        "rows": 1000,
+        "shared_blks_hit": 16868,
+        "shared_blks_read": 35
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 7502,
+        "total_ms": 39.938,
+        "mean_ms": 0.005,
+        "rows": 7502,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 7502,
+        "total_ms": 28.394,
+        "mean_ms": 0.004,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH target AS (\n       SELECT id FROM accounts WHERE id = $1\n     ),\n     plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE id = $2 AND (owner_account_id IS NULL OR owner_account_id = $1)\n     ),\n     updated AS (\n       UPDATE ac",
+        "calls": 50,
+        "total_ms": 5.64,
+        "mean_ms": 0.113,
+        "rows": 50,
+        "shared_blks_hit": 687,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO accounts (id, name, api_key_hash, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4,",
+        "calls": 50,
+        "total_ms": 5.404,
+        "mean_ms": 0.108,
+        "rows": 50,
+        "shared_blks_hit": 410,
+        "shared_blks_read": 11
+      }
+    ],
+    "ab-dist-a-3": [
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 7501,
+        "total_ms": 2443.269,
+        "mean_ms": 0.326,
+        "rows": 7501,
+        "shared_blks_hit": 232210,
+        "shared_blks_read": 5062
+      },
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 15752,
+        "total_ms": 981.877,
+        "mean_ms": 0.062,
+        "rows": 750,
+        "shared_blks_hit": 1225493,
+        "shared_blks_read": 29
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 7501,
+        "total_ms": 820.215,
+        "mean_ms": 0.109,
+        "rows": 7501,
+        "shared_blks_hit": 90012,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 7501,
+        "total_ms": 465.135,
+        "mean_ms": 0.062,
+        "rows": 1000,
+        "shared_blks_hit": 32530,
+        "shared_blks_read": 27
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 7126,
+        "total_ms": 369.252,
+        "mean_ms": 0.052,
+        "rows": 7126,
+        "shared_blks_hit": 48462,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 7501,
+        "total_ms": 358.858,
+        "mean_ms": 0.048,
+        "rows": 50,
+        "shared_blks_hit": 15416,
+        "shared_blks_read": 9
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 7126,
+        "total_ms": 260.896,
+        "mean_ms": 0.037,
+        "rows": 7126,
+        "shared_blks_hit": 35920,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 9351,
+        "total_ms": 234.221,
+        "mean_ms": 0.025,
+        "rows": 9351,
+        "shared_blks_hit": 27918,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 7501,
+        "total_ms": 192.971,
+        "mean_ms": 0.026,
+        "rows": 7501,
+        "shared_blks_hit": 30004,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 7501,
+        "total_ms": 161.074,
+        "mean_ms": 0.021,
+        "rows": 7501,
+        "shared_blks_hit": 22503,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 1000,
+        "total_ms": 105.625,
+        "mean_ms": 0.106,
+        "rows": 1000,
+        "shared_blks_hit": 18294,
+        "shared_blks_read": 49
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 7501,
+        "total_ms": 37.646,
+        "mean_ms": 0.005,
+        "rows": 7501,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 7501,
+        "total_ms": 26.257,
+        "mean_ms": 0.004,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH target AS (\n       SELECT id FROM accounts WHERE id = $1\n     ),\n     plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE id = $2 AND (owner_account_id IS NULL OR owner_account_id = $1)\n     ),\n     updated AS (\n       UPDATE ac",
+        "calls": 50,
+        "total_ms": 6.183,
+        "mean_ms": 0.124,
+        "rows": 50,
+        "shared_blks_hit": 831,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "INSERT INTO plans (id, code, owner_account_id, scope, name, monthly_allowance,\n                        max_units_per_request, created_at, updated_at)\n     VALUES ($1, $8, $2, $3, $4, $5, $6, $7, $7)\n     RETURNING id, code, name, scope, monthly_allowance, max_units_per_request, created_at, updated_a",
+        "calls": 50,
+        "total_ms": 5.758,
+        "mean_ms": 0.115,
+        "rows": 50,
+        "shared_blks_hit": 495,
+        "shared_blks_read": 6
+      }
+    ],
+    "ab-dist-a-4": [
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 7502,
+        "total_ms": 2472.102,
+        "mean_ms": 0.33,
+        "rows": 7502,
+        "shared_blks_hit": 243902,
+        "shared_blks_read": 5026
+      },
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 15754,
+        "total_ms": 930.897,
+        "mean_ms": 0.059,
+        "rows": 750,
+        "shared_blks_hit": 1225374,
+        "shared_blks_read": 26
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 7502,
+        "total_ms": 867.758,
+        "mean_ms": 0.116,
+        "rows": 7502,
+        "shared_blks_hit": 97526,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 7502,
+        "total_ms": 466.837,
+        "mean_ms": 0.062,
+        "rows": 1000,
+        "shared_blks_hit": 33045,
+        "shared_blks_read": 42
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 7127,
+        "total_ms": 369.94,
+        "mean_ms": 0.052,
+        "rows": 7127,
+        "shared_blks_hit": 48992,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 7502,
+        "total_ms": 366.253,
+        "mean_ms": 0.049,
+        "rows": 50,
+        "shared_blks_hit": 22915,
+        "shared_blks_read": 9
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 7127,
+        "total_ms": 271.667,
+        "mean_ms": 0.038,
+        "rows": 7127,
+        "shared_blks_hit": 35969,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 9352,
+        "total_ms": 271.182,
+        "mean_ms": 0.029,
+        "rows": 9352,
+        "shared_blks_hit": 37184,
+        "shared_blks_read": 2
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 7502,
+        "total_ms": 197.25,
+        "mean_ms": 0.026,
+        "rows": 7502,
+        "shared_blks_hit": 30021,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 7502,
+        "total_ms": 170.577,
+        "mean_ms": 0.023,
+        "rows": 7502,
+        "shared_blks_hit": 22505,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 1000,
+        "total_ms": 108.038,
+        "mean_ms": 0.108,
+        "rows": 1000,
+        "shared_blks_hit": 19802,
+        "shared_blks_read": 69
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 7502,
+        "total_ms": 36.833,
+        "mean_ms": 0.005,
+        "rows": 7502,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 7502,
+        "total_ms": 25.648,
+        "mean_ms": 0.003,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH target AS (\n       SELECT id FROM accounts WHERE id = $1\n     ),\n     plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE id = $2 AND (owner_account_id IS NULL OR owner_account_id = $1)\n     ),\n     updated AS (\n       UPDATE ac",
+        "calls": 50,
+        "total_ms": 6.218,
+        "mean_ms": 0.124,
+        "rows": 50,
+        "shared_blks_hit": 986,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "INSERT INTO plans (id, code, owner_account_id, scope, name, monthly_allowance,\n                        max_units_per_request, created_at, updated_at)\n     VALUES ($1, $8, $2, $3, $4, $5, $6, $7, $7)\n     RETURNING id, code, name, scope, monthly_allowance, max_units_per_request, created_at, updated_a",
+        "calls": 50,
+        "total_ms": 5.627,
+        "mean_ms": 0.113,
+        "rows": 50,
+        "shared_blks_hit": 540,
+        "shared_blks_read": 5
+      }
+    ],
+    "ab-dist-a-5": [
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 7502,
+        "total_ms": 2487.927,
+        "mean_ms": 0.332,
+        "rows": 7502,
+        "shared_blks_hit": 243706,
+        "shared_blks_read": 5073
+      },
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 15754,
+        "total_ms": 981.75,
+        "mean_ms": 0.062,
+        "rows": 750,
+        "shared_blks_hit": 1225339,
+        "shared_blks_read": 34
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 7502,
+        "total_ms": 957.492,
+        "mean_ms": 0.128,
+        "rows": 7502,
+        "shared_blks_hit": 120032,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 7502,
+        "total_ms": 460.784,
+        "mean_ms": 0.061,
+        "rows": 1000,
+        "shared_blks_hit": 32524,
+        "shared_blks_read": 48
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 7502,
+        "total_ms": 397.29,
+        "mean_ms": 0.053,
+        "rows": 50,
+        "shared_blks_hit": 23043,
+        "shared_blks_read": 11
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 7127,
+        "total_ms": 356.987,
+        "mean_ms": 0.05,
+        "rows": 7127,
+        "shared_blks_hit": 48471,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 9352,
+        "total_ms": 322.585,
+        "mean_ms": 0.034,
+        "rows": 9352,
+        "shared_blks_hit": 46447,
+        "shared_blks_read": 3
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 7127,
+        "total_ms": 297.618,
+        "mean_ms": 0.042,
+        "rows": 7127,
+        "shared_blks_hit": 43112,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 7502,
+        "total_ms": 198.484,
+        "mean_ms": 0.026,
+        "rows": 7502,
+        "shared_blks_hit": 29981,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 7502,
+        "total_ms": 184.846,
+        "mean_ms": 0.025,
+        "rows": 7502,
+        "shared_blks_hit": 30008,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 1000,
+        "total_ms": 114.525,
+        "mean_ms": 0.115,
+        "rows": 1000,
+        "shared_blks_hit": 21736,
+        "shared_blks_read": 77
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 7502,
+        "total_ms": 38.24,
+        "mean_ms": 0.005,
+        "rows": 7502,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 7502,
+        "total_ms": 27.932,
+        "mean_ms": 0.004,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH target AS (\n       SELECT id FROM accounts WHERE id = $1\n     ),\n     plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE id = $2 AND (owner_account_id IS NULL OR owner_account_id = $1)\n     ),\n     updated AS (\n       UPDATE ac",
+        "calls": 50,
+        "total_ms": 6.808,
+        "mean_ms": 0.136,
+        "rows": 50,
+        "shared_blks_hit": 1178,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "INSERT INTO plans (id, code, owner_account_id, scope, name, monthly_allowance,\n                        max_units_per_request, created_at, updated_at)\n     VALUES ($1, $8, $2, $3, $4, $5, $6, $7, $7)\n     RETURNING id, code, name, scope, monthly_allowance, max_units_per_request, created_at, updated_a",
+        "calls": 50,
+        "total_ms": 6.26,
+        "mean_ms": 0.125,
+        "rows": 50,
+        "shared_blks_hit": 625,
+        "shared_blks_read": 6
+      }
+    ],
+    "ab-hot-a-1": [
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 6304,
+        "total_ms": 1657.231,
+        "mean_ms": 0.263,
+        "rows": 300,
+        "shared_blks_hit": 396945,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 3002,
+        "total_ms": 1023.509,
+        "mean_ms": 0.341,
+        "rows": 3002,
+        "shared_blks_hit": 88132,
+        "shared_blks_read": 2528
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 3002,
+        "total_ms": 247.635,
+        "mean_ms": 0.082,
+        "rows": 3002,
+        "shared_blks_hit": 19516,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 3002,
+        "total_ms": 181.114,
+        "mean_ms": 0.06,
+        "rows": 200,
+        "shared_blks_hit": 10996,
+        "shared_blks_read": 19
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 3002,
+        "total_ms": 158.836,
+        "mean_ms": 0.053,
+        "rows": 1,
+        "shared_blks_hit": 6052,
+        "shared_blks_read": 8
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 2852,
+        "total_ms": 147.059,
+        "mean_ms": 0.052,
+        "rows": 2852,
+        "shared_blks_hit": 18734,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 2852,
+        "total_ms": 93.384,
+        "mean_ms": 0.033,
+        "rows": 2852,
+        "shared_blks_hit": 11417,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 3002,
+        "total_ms": 82.211,
+        "mean_ms": 0.027,
+        "rows": 3002,
+        "shared_blks_hit": 12511,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 3504,
+        "total_ms": 54.605,
+        "mean_ms": 0.016,
+        "rows": 3504,
+        "shared_blks_hit": 3504,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 3002,
+        "total_ms": 47.484,
+        "mean_ms": 0.016,
+        "rows": 3002,
+        "shared_blks_hit": 6004,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 200,
+        "total_ms": 20.218,
+        "mean_ms": 0.101,
+        "rows": 200,
+        "shared_blks_hit": 3013,
+        "shared_blks_read": 14
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 3002,
+        "total_ms": 19.804,
+        "mean_ms": 0.007,
+        "rows": 3002,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 3002,
+        "total_ms": 15.353,
+        "mean_ms": 0.005,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "COMMIT",
+        "calls": 3002,
+        "total_ms": 2.137,
+        "mean_ms": 0.001,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT name, checksum FROM schema_migrations ORDER BY name",
+        "calls": 15,
+        "total_ms": 0.611,
+        "mean_ms": 0.041,
+        "rows": 30,
+        "shared_blks_hit": 20,
+        "shared_blks_read": 1
+      }
+    ],
+    "ab-hot-a-2": [
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 6304,
+        "total_ms": 1634.577,
+        "mean_ms": 0.259,
+        "rows": 300,
+        "shared_blks_hit": 389478,
+        "shared_blks_read": 3
+      },
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 3002,
+        "total_ms": 994.303,
+        "mean_ms": 0.331,
+        "rows": 3002,
+        "shared_blks_hit": 91049,
+        "shared_blks_read": 2526
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 3002,
+        "total_ms": 295.553,
+        "mean_ms": 0.098,
+        "rows": 3002,
+        "shared_blks_hit": 27018,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 3002,
+        "total_ms": 175.769,
+        "mean_ms": 0.059,
+        "rows": 200,
+        "shared_blks_hit": 11048,
+        "shared_blks_read": 26
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 3002,
+        "total_ms": 169.244,
+        "mean_ms": 0.056,
+        "rows": 1,
+        "shared_blks_hit": 6027,
+        "shared_blks_read": 9
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 2852,
+        "total_ms": 139.302,
+        "mean_ms": 0.049,
+        "rows": 2852,
+        "shared_blks_hit": 18397,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 2852,
+        "total_ms": 94.728,
+        "mean_ms": 0.033,
+        "rows": 2852,
+        "shared_blks_hit": 11415,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 3002,
+        "total_ms": 75.633,
+        "mean_ms": 0.025,
+        "rows": 3002,
+        "shared_blks_hit": 12008,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 3504,
+        "total_ms": 73.05,
+        "mean_ms": 0.021,
+        "rows": 3504,
+        "shared_blks_hit": 7007,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 3002,
+        "total_ms": 49.994,
+        "mean_ms": 0.017,
+        "rows": 3002,
+        "shared_blks_hit": 6004,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 200,
+        "total_ms": 20.525,
+        "mean_ms": 0.103,
+        "rows": 200,
+        "shared_blks_hit": 3414,
+        "shared_blks_read": 19
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 3002,
+        "total_ms": 16.863,
+        "mean_ms": 0.006,
+        "rows": 3002,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 3002,
+        "total_ms": 12.94,
+        "mean_ms": 0.004,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "COMMIT",
+        "calls": 3002,
+        "total_ms": 1.772,
+        "mean_ms": 0.001,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT name, checksum FROM schema_migrations ORDER BY name",
+        "calls": 15,
+        "total_ms": 0.629,
+        "mean_ms": 0.042,
+        "rows": 30,
+        "shared_blks_hit": 17,
+        "shared_blks_read": 1
+      }
+    ],
+    "ab-hot-a-3": [
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 6304,
+        "total_ms": 1558.121,
+        "mean_ms": 0.247,
+        "rows": 300,
+        "shared_blks_hit": 391446,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 3002,
+        "total_ms": 1012.119,
+        "mean_ms": 0.337,
+        "rows": 3002,
+        "shared_blks_hit": 94086,
+        "shared_blks_read": 2556
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 3002,
+        "total_ms": 323.227,
+        "mean_ms": 0.108,
+        "rows": 3002,
+        "shared_blks_hit": 36024,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 3002,
+        "total_ms": 180.455,
+        "mean_ms": 0.06,
+        "rows": 200,
+        "shared_blks_hit": 10989,
+        "shared_blks_read": 31
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 3002,
+        "total_ms": 173.914,
+        "mean_ms": 0.058,
+        "rows": 1,
+        "shared_blks_hit": 6054,
+        "shared_blks_read": 8
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 2852,
+        "total_ms": 138.367,
+        "mean_ms": 0.049,
+        "rows": 2852,
+        "shared_blks_hit": 18262,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 2852,
+        "total_ms": 106.358,
+        "mean_ms": 0.037,
+        "rows": 2852,
+        "shared_blks_hit": 14275,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 3504,
+        "total_ms": 90.52,
+        "mean_ms": 0.026,
+        "rows": 3504,
+        "shared_blks_hit": 10510,
+        "shared_blks_read": 2
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 3002,
+        "total_ms": 75.718,
+        "mean_ms": 0.025,
+        "rows": 3002,
+        "shared_blks_hit": 12008,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 3002,
+        "total_ms": 63.201,
+        "mean_ms": 0.021,
+        "rows": 3002,
+        "shared_blks_hit": 9005,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 200,
+        "total_ms": 22.142,
+        "mean_ms": 0.111,
+        "rows": 200,
+        "shared_blks_hit": 3803,
+        "shared_blks_read": 24
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 3002,
+        "total_ms": 18.091,
+        "mean_ms": 0.006,
+        "rows": 3002,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 3002,
+        "total_ms": 14.229,
+        "mean_ms": 0.005,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "COMMIT",
+        "calls": 3002,
+        "total_ms": 1.974,
+        "mean_ms": 0.001,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO accounts (id, name, api_key_hash, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4,",
+        "calls": 1,
+        "total_ms": 0.875,
+        "mean_ms": 0.875,
+        "rows": 1,
+        "shared_blks_hit": 21,
+        "shared_blks_read": 12
+      }
+    ],
+    "ab-hot-a-4": [
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 6302,
+        "total_ms": 1542.952,
+        "mean_ms": 0.245,
+        "rows": 300,
+        "shared_blks_hit": 389932,
+        "shared_blks_read": 2
+      },
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 3001,
+        "total_ms": 1004.513,
+        "mean_ms": 0.335,
+        "rows": 3001,
+        "shared_blks_hit": 97023,
+        "shared_blks_read": 2539
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 3001,
+        "total_ms": 357.052,
+        "mean_ms": 0.119,
+        "rows": 3001,
+        "shared_blks_hit": 45015,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 3001,
+        "total_ms": 171.666,
+        "mean_ms": 0.057,
+        "rows": 200,
+        "shared_blks_hit": 11078,
+        "shared_blks_read": 41
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 3001,
+        "total_ms": 154.873,
+        "mean_ms": 0.052,
+        "rows": 1,
+        "shared_blks_hit": 9028,
+        "shared_blks_read": 10
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 2851,
+        "total_ms": 137.038,
+        "mean_ms": 0.048,
+        "rows": 2851,
+        "shared_blks_hit": 18531,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 2851,
+        "total_ms": 111.223,
+        "mean_ms": 0.039,
+        "rows": 2851,
+        "shared_blks_hit": 14264,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 3503,
+        "total_ms": 108.987,
+        "mean_ms": 0.031,
+        "rows": 3503,
+        "shared_blks_hit": 14009,
+        "shared_blks_read": 3
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 3001,
+        "total_ms": 75.868,
+        "mean_ms": 0.025,
+        "rows": 3001,
+        "shared_blks_hit": 12004,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 3001,
+        "total_ms": 69.59,
+        "mean_ms": 0.023,
+        "rows": 3001,
+        "shared_blks_hit": 9003,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 200,
+        "total_ms": 24.033,
+        "mean_ms": 0.12,
+        "rows": 200,
+        "shared_blks_hit": 4212,
+        "shared_blks_read": 29
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 3001,
+        "total_ms": 16.852,
+        "mean_ms": 0.006,
+        "rows": 3001,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 3001,
+        "total_ms": 13.331,
+        "mean_ms": 0.004,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "COMMIT",
+        "calls": 3001,
+        "total_ms": 1.699,
+        "mean_ms": 0.001,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT name, checksum FROM schema_migrations ORDER BY name",
+        "calls": 14,
+        "total_ms": 0.614,
+        "mean_ms": 0.044,
+        "rows": 28,
+        "shared_blks_hit": 17,
+        "shared_blks_read": 0
+      }
+    ],
+    "ab-hot-a-5": [
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 6302,
+        "total_ms": 1531.05,
+        "mean_ms": 0.243,
+        "rows": 300,
+        "shared_blks_hit": 393673,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 3001,
+        "total_ms": 1015.304,
+        "mean_ms": 0.338,
+        "rows": 3001,
+        "shared_blks_hit": 96994,
+        "shared_blks_read": 2568
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 3001,
+        "total_ms": 390.367,
+        "mean_ms": 0.13,
+        "rows": 3001,
+        "shared_blks_hit": 48016,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 3001,
+        "total_ms": 174.362,
+        "mean_ms": 0.058,
+        "rows": 200,
+        "shared_blks_hit": 10966,
+        "shared_blks_read": 45
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 3001,
+        "total_ms": 154.721,
+        "mean_ms": 0.052,
+        "rows": 1,
+        "shared_blks_hit": 9029,
+        "shared_blks_read": 8
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 2851,
+        "total_ms": 139.464,
+        "mean_ms": 0.049,
+        "rows": 2851,
+        "shared_blks_hit": 18248,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 3503,
+        "total_ms": 126.126,
+        "mean_ms": 0.036,
+        "rows": 3503,
+        "shared_blks_hit": 17511,
+        "shared_blks_read": 4
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 2851,
+        "total_ms": 120.657,
+        "mean_ms": 0.042,
+        "rows": 2851,
+        "shared_blks_hit": 17116,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 3001,
+        "total_ms": 80.38,
+        "mean_ms": 0.027,
+        "rows": 3001,
+        "shared_blks_hit": 12003,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 3001,
+        "total_ms": 76.124,
+        "mean_ms": 0.025,
+        "rows": 3001,
+        "shared_blks_hit": 12004,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 200,
+        "total_ms": 24.41,
+        "mean_ms": 0.122,
+        "rows": 200,
+        "shared_blks_hit": 4388,
+        "shared_blks_read": 41
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 3001,
+        "total_ms": 16.703,
+        "mean_ms": 0.006,
+        "rows": 3001,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 3001,
+        "total_ms": 13.168,
+        "mean_ms": 0.004,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "COMMIT",
+        "calls": 3001,
+        "total_ms": 1.768,
+        "mean_ms": 0.001,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT name, checksum FROM schema_migrations ORDER BY name",
+        "calls": 15,
+        "total_ms": 0.657,
+        "mean_ms": 0.044,
+        "rows": 30,
+        "shared_blks_hit": 18,
+        "shared_blks_read": 0
+      }
+    ],
+    "diag-account": [
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 20704,
+        "total_ms": 525835.677,
+        "mean_ms": 25.398,
+        "rows": 20704,
+        "shared_blks_hit": 232596,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 41408,
+        "total_ms": 91876.843,
+        "mean_ms": 2.219,
+        "rows": 0,
+        "shared_blks_hit": 103592587,
+        "shared_blks_read": 3
+      },
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 20704,
+        "total_ms": 8261.432,
+        "mean_ms": 0.399,
+        "rows": 20704,
+        "shared_blks_hit": 700268,
+        "shared_blks_read": 7581
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 20704,
+        "total_ms": 3506.131,
+        "mean_ms": 0.169,
+        "rows": 1,
+        "shared_blks_hit": 71053,
+        "shared_blks_read": 8
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 20704,
+        "total_ms": 1347.85,
+        "mean_ms": 0.065,
+        "rows": 20704,
+        "shared_blks_hit": 248448,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 20704,
+        "total_ms": 1325.497,
+        "mean_ms": 0.064,
+        "rows": 1000,
+        "shared_blks_hit": 72507,
+        "shared_blks_read": 58
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 19670,
+        "total_ms": 992.822,
+        "mean_ms": 0.05,
+        "rows": 19670,
+        "shared_blks_hit": 119047,
+        "shared_blks_read": 2
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 19670,
+        "total_ms": 955.749,
+        "mean_ms": 0.049,
+        "rows": 19670,
+        "shared_blks_hit": 125273,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 20704,
+        "total_ms": 694.533,
+        "mean_ms": 0.034,
+        "rows": 20704,
+        "shared_blks_hit": 82852,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 21706,
+        "total_ms": 690.571,
+        "mean_ms": 0.032,
+        "rows": 21706,
+        "shared_blks_hit": 65118,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 1000,
+        "total_ms": 144.578,
+        "mean_ms": 0.145,
+        "rows": 1000,
+        "shared_blks_hit": 20044,
+        "shared_blks_read": 45
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 20704,
+        "total_ms": 119.715,
+        "mean_ms": 0.006,
+        "rows": 20704,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 20704,
+        "total_ms": 83.861,
+        "mean_ms": 0.004,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "COMMIT",
+        "calls": 20704,
+        "total_ms": 11.766,
+        "mean_ms": 0.001,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT name, checksum FROM schema_migrations ORDER BY name",
+        "calls": 26,
+        "total_ms": 1.264,
+        "mean_ms": 0.049,
+        "rows": 52,
+        "shared_blks_hit": 53,
+        "shared_blks_read": 0
+      }
+    ],
+    "diag-spread": [
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 23255,
+        "total_ms": 8731.472,
+        "mean_ms": 0.375,
+        "rows": 23255,
+        "shared_blks_hit": 810088,
+        "shared_blks_read": 8031
+      },
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 46510,
+        "total_ms": 3641.877,
+        "mean_ms": 0.078,
+        "rows": 0,
+        "shared_blks_hit": 5547764,
+        "shared_blks_read": 55
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 23255,
+        "total_ms": 1358.356,
+        "mean_ms": 0.058,
+        "rows": 23255,
+        "shared_blks_hit": 279064,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 23255,
+        "total_ms": 1304.845,
+        "mean_ms": 0.056,
+        "rows": 1000,
+        "shared_blks_hit": 80062,
+        "shared_blks_read": 55
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 23255,
+        "total_ms": 1268.439,
+        "mean_ms": 0.055,
+        "rows": 100,
+        "shared_blks_hit": 70833,
+        "shared_blks_read": 9
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 22093,
+        "total_ms": 970.599,
+        "mean_ms": 0.044,
+        "rows": 22093,
+        "shared_blks_hit": 138699,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 22093,
+        "total_ms": 949.05,
+        "mean_ms": 0.043,
+        "rows": 22093,
+        "shared_blks_hit": 133208,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 24455,
+        "total_ms": 752.011,
+        "mean_ms": 0.031,
+        "rows": 24455,
+        "shared_blks_hit": 73801,
+        "shared_blks_read": 4
+      },
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 23255,
+        "total_ms": 623.334,
+        "mean_ms": 0.027,
+        "rows": 23255,
+        "shared_blks_hit": 93022,
+        "shared_blks_read": 2
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 23255,
+        "total_ms": 578.931,
+        "mean_ms": 0.025,
+        "rows": 23255,
+        "shared_blks_hit": 93020,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 1000,
+        "total_ms": 125.867,
+        "mean_ms": 0.126,
+        "rows": 1000,
+        "shared_blks_hit": 20992,
+        "shared_blks_read": 121
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 23255,
+        "total_ms": 109.488,
+        "mean_ms": 0.005,
+        "rows": 23255,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 23255,
+        "total_ms": 71.64,
+        "mean_ms": 0.003,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH target AS (\n       SELECT id FROM accounts WHERE id = $1\n     ),\n     plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE id = $2 AND (owner_account_id IS NULL OR owner_account_id = $1)\n     ),\n     updated AS (\n       UPDATE ac",
+        "calls": 100,
+        "total_ms": 14.543,
+        "mean_ms": 0.145,
+        "rows": 100,
+        "shared_blks_hit": 2098,
+        "shared_blks_read": 2
+      },
+      {
+        "query": "INSERT INTO plans (id, code, owner_account_id, scope, name, monthly_allowance,\n                        max_units_per_request, created_at, updated_at)\n     VALUES ($1, $8, $2, $3, $4, $5, $6, $7, $7)\n     RETURNING id, code, name, scope, monthly_allowance, max_units_per_request, created_at, updated_a",
+        "calls": 100,
+        "total_ms": 12.787,
+        "mean_ms": 0.128,
+        "rows": 100,
+        "shared_blks_hit": 1460,
+        "shared_blks_read": 11
+      }
+    ],
+    "diag-user": [
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 20818,
+        "total_ms": 509120.191,
+        "mean_ms": 24.456,
+        "rows": 20818,
+        "shared_blks_hit": 228338,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 41636,
+        "total_ms": 91583.002,
+        "mean_ms": 2.2,
+        "rows": 0,
+        "shared_blks_hit": 105645769,
+        "shared_blks_read": 3
+      },
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 20818,
+        "total_ms": 8197.966,
+        "mean_ms": 0.394,
+        "rows": 20818,
+        "shared_blks_hit": 704176,
+        "shared_blks_read": 7656
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 20818,
+        "total_ms": 3603.412,
+        "mean_ms": 0.173,
+        "rows": 1,
+        "shared_blks_hit": 71698,
+        "shared_blks_read": 7
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 20818,
+        "total_ms": 1311.354,
+        "mean_ms": 0.063,
+        "rows": 20818,
+        "shared_blks_hit": 249816,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 20818,
+        "total_ms": 1204.17,
+        "mean_ms": 0.058,
+        "rows": 1,
+        "shared_blks_hit": 62482,
+        "shared_blks_read": 3
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 19778,
+        "total_ms": 997.922,
+        "mean_ms": 0.05,
+        "rows": 19778,
+        "shared_blks_hit": 119989,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 19778,
+        "total_ms": 921.32,
+        "mean_ms": 0.047,
+        "rows": 19778,
+        "shared_blks_hit": 118696,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 20818,
+        "total_ms": 679.424,
+        "mean_ms": 0.033,
+        "rows": 20818,
+        "shared_blks_hit": 83272,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 20823,
+        "total_ms": 677.829,
+        "mean_ms": 0.033,
+        "rows": 20823,
+        "shared_blks_hit": 62469,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 20818,
+        "total_ms": 119.632,
+        "mean_ms": 0.006,
+        "rows": 20818,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 20818,
+        "total_ms": 80.116,
+        "mean_ms": 0.004,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "COMMIT",
+        "calls": 20818,
+        "total_ms": 12.408,
+        "mean_ms": 0.001,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT name, checksum FROM schema_migrations ORDER BY name",
+        "calls": 27,
+        "total_ms": 1.29,
+        "mean_ms": 0.048,
+        "rows": 54,
+        "shared_blks_hit": 44,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO accounts (id, name, api_key_hash, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4,",
+        "calls": 1,
+        "total_ms": 0.686,
+        "mean_ms": 0.686,
+        "rows": 1,
+        "shared_blks_hit": 21,
+        "shared_blks_read": 14
+      }
+    ],
+    "history": [
+      {
+        "query": "SELECT id, request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before,",
+        "calls": 9005,
+        "total_ms": 912.964,
+        "mean_ms": 0.101,
+        "rows": 189105,
+        "shared_blks_hit": 45025,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 9005,
+        "total_ms": 99.602,
+        "mean_ms": 0.011,
+        "rows": 9005,
+        "shared_blks_hit": 9004,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT EXISTS (SELECT $3 FROM users WHERE account_id = $1 AND id = $2) AS user_found, $4::bigint AS anchor_seq",
+        "calls": 9005,
+        "total_ms": 64.84,
+        "mean_ms": 0.007,
+        "rows": 9005,
+        "shared_blks_hit": 9004,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "SELECT name, checksum FROM schema_migrations ORDER BY name",
+        "calls": 44,
+        "total_ms": 1.933,
+        "mean_ms": 0.044,
+        "rows": 88,
+        "shared_blks_hit": 53,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT to_regclass($1) IS NOT NULL AS exists",
+        "calls": 44,
+        "total_ms": 0.673,
+        "mean_ms": 0.015,
+        "rows": 44,
+        "shared_blks_hit": 15,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT pg_stat_statements_reset()",
+        "calls": 1,
+        "total_ms": 0.084,
+        "mean_ms": 0.084,
+        "rows": 1,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      }
+    ],
+    "race-conflicting": [
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 4506,
+        "total_ms": 7371.369,
+        "mean_ms": 1.636,
+        "rows": 4506,
+        "shared_blks_hit": 23255,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 4506,
+        "total_ms": 1223.512,
+        "mean_ms": 0.272,
+        "rows": 200,
+        "shared_blks_hit": 16622,
+        "shared_blks_read": 69
+      },
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 1502,
+        "total_ms": 567.738,
+        "mean_ms": 0.378,
+        "rows": 1502,
+        "shared_blks_hit": 49901,
+        "shared_blks_read": 1542
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 4506,
+        "total_ms": 433.944,
+        "mean_ms": 0.096,
+        "rows": 20,
+        "shared_blks_hit": 13886,
+        "shared_blks_read": 14
+      },
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 9012,
+        "total_ms": 362.644,
+        "mean_ms": 0.04,
+        "rows": 3004,
+        "shared_blks_hit": 274201,
+        "shared_blks_read": 29
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 4506,
+        "total_ms": 342.687,
+        "mean_ms": 0.076,
+        "rows": 4506,
+        "shared_blks_hit": 54072,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 4746,
+        "total_ms": 161.647,
+        "mean_ms": 0.034,
+        "rows": 4746,
+        "shared_blks_hit": 14240,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 4506,
+        "total_ms": 124.459,
+        "mean_ms": 0.028,
+        "rows": 4506,
+        "shared_blks_hit": 18039,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 1502,
+        "total_ms": 71.988,
+        "mean_ms": 0.048,
+        "rows": 1502,
+        "shared_blks_hit": 10244,
+        "shared_blks_read": 1
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 1502,
+        "total_ms": 67.828,
+        "mean_ms": 0.045,
+        "rows": 1502,
+        "shared_blks_hit": 9145,
+        "shared_blks_read": 2
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 200,
+        "total_ms": 30.387,
+        "mean_ms": 0.152,
+        "rows": 200,
+        "shared_blks_hit": 3949,
+        "shared_blks_read": 74
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 4506,
+        "total_ms": 24.385,
+        "mean_ms": 0.005,
+        "rows": 4506,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 4506,
+        "total_ms": 14.914,
+        "mean_ms": 0.003,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "WITH target AS (\n       SELECT id FROM accounts WHERE id = $1\n     ),\n     plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE id = $2 AND (owner_account_id IS NULL OR owner_account_id = $1)\n     ),\n     updated AS (\n       UPDATE ac",
+        "calls": 20,
+        "total_ms": 4.343,
+        "mean_ms": 0.217,
+        "rows": 20,
+        "shared_blks_hit": 388,
+        "shared_blks_read": 2
+      },
+      {
+        "query": "INSERT INTO plans (id, code, owner_account_id, scope, name, monthly_allowance,\n                        max_units_per_request, created_at, updated_at)\n     VALUES ($1, $8, $2, $3, $4, $5, $6, $7, $7)\n     RETURNING id, code, name, scope, monthly_allowance, max_units_per_request, created_at, updated_a",
+        "calls": 20,
+        "total_ms": 3.008,
+        "mean_ms": 0.15,
+        "rows": 20,
+        "shared_blks_hit": 254,
+        "shared_blks_read": 12
+      }
+    ],
+    "race-identical": [
+      {
+        "query": "SELECT used FROM account_monthly_usage\n     WHERE account_id = $1 AND month = $2\n     FOR UPDATE",
+        "calls": 4506,
+        "total_ms": 7560.199,
+        "mean_ms": 1.678,
+        "rows": 4506,
+        "shared_blks_hit": 22999,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO user_monthly_usage (account_id, user_id, month) VALUES ($1, $2, $3)\n     ON CONFLICT (user_id, month) DO NOTHING",
+        "calls": 4506,
+        "total_ms": 1231.253,
+        "mean_ms": 0.273,
+        "rows": 200,
+        "shared_blks_hit": 16721,
+        "shared_blks_read": 70
+      },
+      {
+        "query": "INSERT INTO consume_decisions (\n       id, account_id, user_id, request_id, units, accepted, blocking_rule, blocking_level,\n       account_plan_id, account_plan_name, account_monthly_allowance,\n       account_max_units_per_request, account_used_before,\n       user_plan_id, user_plan_name, user_month",
+        "calls": 1502,
+        "total_ms": 585.884,
+        "mean_ms": 0.39,
+        "rows": 1502,
+        "shared_blks_hit": 49931,
+        "shared_blks_read": 1544
+      },
+      {
+        "query": "INSERT INTO account_monthly_usage (account_id, month) VALUES ($1, $2)\n     ON CONFLICT (account_id, month) DO NOTHING",
+        "calls": 4506,
+        "total_ms": 458.999,
+        "mean_ms": 0.102,
+        "rows": 20,
+        "shared_blks_hit": 13920,
+        "shared_blks_read": 14
+      },
+      {
+        "query": "SELECT request_id, user_id, units, accepted, blocking_rule, blocking_level,\n  account_plan_id, account_plan_name, account_monthly_allowance, account_max_units_per_request,\n  account_used_before, user_plan_id, user_plan_name, user_monthly_allowance,\n  user_max_units_per_request, user_used_before, mon",
+        "calls": 9012,
+        "total_ms": 396.276,
+        "mean_ms": 0.044,
+        "rows": 3004,
+        "shared_blks_hit": 279058,
+        "shared_blks_read": 28
+      },
+      {
+        "query": "SELECT ap.id AS account_plan_id, ap.name AS account_plan_name,\n            ap.monthly_allowance AS account_monthly_allowance,\n            ap.max_units_per_request AS account_max_units_per_request,\n            up.id AS user_plan_id, up.name AS user_plan_name,\n            up.monthly_allowance AS user_",
+        "calls": 4506,
+        "total_ms": 344.81,
+        "mean_ms": 0.077,
+        "rows": 4506,
+        "shared_blks_hit": 54072,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT id FROM accounts WHERE api_key_hash = $1",
+        "calls": 4746,
+        "total_ms": 184.975,
+        "mean_ms": 0.039,
+        "rows": 4746,
+        "shared_blks_hit": 14238,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "SELECT used FROM user_monthly_usage\n     WHERE account_id = $1 AND user_id = $2 AND month = $3\n     FOR UPDATE",
+        "calls": 4506,
+        "total_ms": 128.458,
+        "mean_ms": 0.029,
+        "rows": 4506,
+        "shared_blks_hit": 18042,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "UPDATE user_monthly_usage SET used = used + $4\n     WHERE account_id = $1 AND user_id = $2 AND month = $3",
+        "calls": 1427,
+        "total_ms": 69.307,
+        "mean_ms": 0.049,
+        "rows": 1427,
+        "shared_blks_hit": 9722,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "UPDATE account_monthly_usage SET used = used + $3\n     WHERE account_id = $1 AND month = $2",
+        "calls": 1427,
+        "total_ms": 67.979,
+        "mean_ms": 0.048,
+        "rows": 1427,
+        "shared_blks_hit": 8694,
+        "shared_blks_read": 2
+      },
+      {
+        "query": "WITH plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE code = $5 AND scope = $6\n     ),\n     inserted AS (\n       INSERT INTO users (id, account_id, name, plan_id, created_at, updated_at)\n       SELECT $1, $2, $3, plan.id, $4, $4 F",
+        "calls": 200,
+        "total_ms": 30.38,
+        "mean_ms": 0.152,
+        "rows": 200,
+        "shared_blks_hit": 3954,
+        "shared_blks_read": 73
+      },
+      {
+        "query": "SELECT set_config($2, $1, $3)",
+        "calls": 4506,
+        "total_ms": 26.431,
+        "mean_ms": 0.006,
+        "rows": 4506,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "BEGIN ISOLATION LEVEL READ COMMITTED",
+        "calls": 4506,
+        "total_ms": 17.301,
+        "mean_ms": 0.004,
+        "rows": 0,
+        "shared_blks_hit": 0,
+        "shared_blks_read": 0
+      },
+      {
+        "query": "INSERT INTO plans (id, code, owner_account_id, scope, name, monthly_allowance,\n                        max_units_per_request, created_at, updated_at)\n     VALUES ($1, $8, $2, $3, $4, $5, $6, $7, $7)\n     RETURNING id, code, name, scope, monthly_allowance, max_units_per_request, created_at, updated_a",
+        "calls": 20,
+        "total_ms": 3.137,
+        "mean_ms": 0.157,
+        "rows": 20,
+        "shared_blks_hit": 257,
+        "shared_blks_read": 9
+      },
+      {
+        "query": "WITH target AS (\n       SELECT id FROM accounts WHERE id = $1\n     ),\n     plan AS (\n       SELECT id, code, name, scope, monthly_allowance, max_units_per_request\n       FROM plans\n       WHERE id = $2 AND (owner_account_id IS NULL OR owner_account_id = $1)\n     ),\n     updated AS (\n       UPDATE ac",
+        "calls": 20,
+        "total_ms": 3.099,
+        "mean_ms": 0.155,
+        "rows": 20,
+        "shared_blks_hit": 381,
+        "shared_blks_read": 1
+      }
+    ]
+  },
+  "decision": {
+    "computed": false,
+    "reason": "required runs are missing",
+    "missing": [
+      "ab-dist-b-1",
+      "ab-dist-b-2",
+      "ab-dist-b-3",
+      "ab-dist-b-4",
+      "ab-dist-b-5",
+      "ab-hot-b-1",
+      "ab-hot-b-2",
+      "ab-hot-b-3",
+      "ab-hot-b-4",
+      "ab-hot-b-5"
+    ]
+  }
+}
