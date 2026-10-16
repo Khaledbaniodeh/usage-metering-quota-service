@@ -293,6 +293,28 @@ Every request has a 10 second deadline, enforced with `AbortController`.
 
 Details and the reasoning behind each are in [docs/architecture.md](docs/architecture.md).
 
+### Architecture at a glance
+
+Protected requests are authenticated by API key before account-scoped application work reaches
+PostgreSQL, while quota evaluation stays in pure functions.
+
+```mermaid
+flowchart TD
+    Client["Calling application / Example client"]
+    API["Fastify HTTP API"]
+    Auth["API-key authentication"]
+    Services["Account, plan, user, consume,<br/>usage and history services"]
+    Rules["Pure quota and response rules"]
+    DB[("PostgreSQL")]
+
+    Client --> API
+    API --> Auth
+    Auth -->|"key digest lookup"| DB
+    API --> Services
+    Services --> Rules
+    Services -->|"account-scoped SQL"| DB
+```
+
 - **PostgreSQL is the only source of truth.** Accounts, users, plans, assignments, monthly counters
   and every decision live in one database. No cache or in-process state can disagree with it.
 - **One transaction per decision, with a fixed lock order.** A new consume reads both plans in one
