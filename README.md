@@ -630,8 +630,14 @@ tests with coverage thresholds against a PostgreSQL 16 service container, and th
 6. Check both health endpoints and that the service does not run as root.
 7. Check that the client image runs as a non-root user, holds only the compiled client (no service
    source, no `node_modules`), and that the client container received no database setting.
-8. Fail if the API logs or the client output contain anything API-key-shaped, the database
-   password, or (API logs) an error-level entry.
-9. Stop the API and require exit code 0 and a completed graceful shutdown.
-10. On failure, print redacted Compose logs. Always run `docker compose down --volumes`. No
+8. Persistence: create an account, a user, an accepted and a rejected decision through the API,
+   run `docker compose down` (which keeps the database volume) and `docker compose up --build`
+   (which recreates every container, the example client running again), then require the
+   account, user, usage and history responses to be byte-for-byte identical and the accepted
+   request to replay its original response. The check's API key exists only in a temporary file
+   that is removed when the step ends.
+9. Fail if the API logs (before and after recreating the stack) or the client output contain
+   anything API-key-shaped, the database password, or (API logs) an error-level entry.
+10. Stop the API and require exit code 0 and a completed graceful shutdown.
+11. On failure, print redacted Compose logs. Always run `docker compose down --volumes`. No
     artifacts are uploaded.
