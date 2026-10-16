@@ -619,8 +619,9 @@ tests with coverage thresholds against a PostgreSQL 16 service container, and th
 1. `npm ci` with Node from `.nvmrc`, used only to check the client's output on the host.
 2. Build the production image.
 3. `docker compose down --volumes`, then `docker compose up --build`, so PostgreSQL, the service and
-   the example client start from a fresh database volume; then wait until PostgreSQL and the
-   service are healthy.
+   the example client start from a fresh database volume (Compose starts the client only once the
+   service is healthy); then check, without restarting anything, that PostgreSQL and the service
+   are healthy.
 4. Wait for the Compose `client` container to exit (at most 300 seconds) and require exit code 0.
    Its log is saved to a file and only a redacted copy is printed.
 5. Run `npm run test:e2e` on that log: every step must appear in order, with the evidence of each

@@ -91,12 +91,21 @@ jobs:
         run: docker build --target runtime --tag usage-metering-quota-service:ci .
 
       # Exactly what a reviewer runs: PostgreSQL, the service and the one-shot example client, which
-      # Compose starts only once the service reports healthy.
+      # Compose starts only once the service reports healthy. The health check afterwards only reads
+      # container state: a second `docker compose up` could recreate the service under the client.
       - name: Start the complete Compose stack from a fresh database volume
+        shell: bash
         run: |
           docker compose down --volumes --remove-orphans
           timeout 600 docker compose up --build --detach
-          docker compose up --detach --wait --wait-timeout 180 postgres api
+          for service in postgres api; do
+            health="$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps --quiet "${service}")")"
+            echo "${service}: ${health}"
+            if [ "${health}" != "healthy" ]; then
+              echo "::error::${service} is not healthy"
+              exit 1
+            fi
+          done
 
       # The client's output goes to a file first; the log shows only a redacted copy, and the raw
       # file is checked and scanned in the next steps.
