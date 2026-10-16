@@ -512,7 +512,7 @@ curl -s -X POST "$API/v1/consume" -H "X-API-Key: $UMQS_API_KEY" \
   -d "{\"userId\": \"$ADA\", \"units\": 11, \"requestId\": \"docs-ada-1\"}"
 ```
 
-`409 {"error":{"code":"IDEMPOTENCY_CONFLICT","message":"The request ID was already used with a different payload"}}`
+`409 {"error":{"code":"IDEMPOTENCY_CONFLICT","message":"The request ID was already used with a different user or number of units"}}`
 
 ### 6. A rejection by the user's limit
 

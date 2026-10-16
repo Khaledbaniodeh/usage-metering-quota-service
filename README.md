@@ -44,6 +44,12 @@ change them, copy [.env.example](.env.example) to `.env` (git-ignored) and edit 
 credential in these files is a development-only placeholder**, such as the database password
 `local-development-only`; never use them outside your machine.
 
+If port `5432` or `8080` is already in use, set `POSTGRES_HOST_PORT` or
+`API_HOST_PORT` to another free host port in `.env` (for example, `15432` and
+`18080`). When `API_HOST_PORT` changes, use that port in the URLs below. The
+example client is unaffected because it reaches the API through the internal
+Compose network.
+
 `docker compose up --build` starts:
 
 1. **PostgreSQL 16**, with its data in the named volume `postgres-data`.
@@ -371,7 +377,7 @@ npm run dev
 | `npm test`                 | All unit and integration tests (needs PostgreSQL, see below)            |
 | `npm run test:unit`        | Unit tests only (no database needed)                                    |
 | `npm run test:integration` | Integration tests against PostgreSQL                                    |
-| `npm run test:coverage`    | All tests with V8 coverage and the enforced 80% thresholds              |
+| `npm run test:coverage`    | All tests with V8 coverage of `src/` and the enforced 80% thresholds    |
 | `npm run test:client`      | The example client's unit tests                                         |
 | `npm run test:load`        | The load-test tooling's unit tests                                      |
 | `npm run test:e2e`         | The end-to-end check of one example-client run (needs a running stack)  |
