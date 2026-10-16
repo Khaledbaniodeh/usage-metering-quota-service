@@ -227,13 +227,25 @@ The service answers a lock timeout with `503 BUSY_RETRY` and a connection-acquir
 Where exactly the queued requests waited (the connection pool or the row lock) was not
 instrumented.
 
-**Unexplained observation, recorded for later.** The idempotency lookup
-(`WHERE account_id = $1 AND request_id = $2`, backed by the unique `(account_id, request_id)`
-index) averaged 2.219 ms and about 2,500 shared-buffer hits per call in D2 (2.200 ms in D3),
-against 0.040 to 0.263 ms and 30 to 119 hits in every other write run. It runs twice per new
-request, once inside the account-lock critical section, so it may contribute to the per-account
-ceiling. Its plan was not captured (EXPLAIN covered only the history query), so the cause is not
-known. It was not investigated further in Phase 7.
+**Unexplained observation, recorded for later.** One statement averaged 2.219 ms and about 2,500
+shared-buffer hits per call in D2 (2.200 ms in D3), against 0.040 to 0.263 ms and 30 to 119 hits
+in every other write run. What the evidence does and does not show:
+
+- `pg_stat_statements` text was stored only up to its first 300 characters (`left(query, 300)` in
+  `load/scripts/benchmark.sh`). The stored text is the statement's select list of decision columns
+  and ends before its `FROM` and `WHERE` clauses.
+- The statement is attributed to the duplicate-decision lookup (`findDecision` in
+  `src/modules/consumption/consume.repository.ts`) by elimination and by call count. It is the only
+  statement in `src/` that begins with that select list. Its 41,408 calls in D2 and 41,636 in D3 are
+  exactly twice the 20,704 and 20,818 stored decisions, matching one fast-path lookup and one
+  re-check under the account lock per new request.
+- The schema has a unique `(account_id, request_id)` index. Whether this statement used it is not
+  proven: no query plan was captured for this statement (EXPLAIN covered only the history query).
+- Because one of the two lookups runs inside the account-lock critical section, it may contribute to
+  the per-account ceiling. That is not established either.
+
+No cause and no optimization conclusion are drawn from this. It was not investigated further in
+Phase 7.
 
 ## Races
 
@@ -348,21 +360,55 @@ npm run test:integration
 
 ### Run a benchmark
 
-Benchmarks run only on GitHub Actions, never on a developer machine, through
-`.github/workflows/performance.yml`:
+**What the workflow enforces.** `.github/workflows/performance.yml` starts only when a pull request
+gets the label **`perf-smoke`** (the same pipeline at a small scale) or **`perf-full`** (this
+protocol, about one hour on the runner above), or by manual dispatch (`workflow_dispatch`, profile
+`smoke` or `full`) once the workflow is on the default branch. Remove and re-add a label to run
+again; ordinary pushes never start a benchmark. The job:
 
-- add the label **`perf-smoke`** (the same pipeline at a small scale) or **`perf-full`** (this
-  protocol, about one hour on the runner above) to a pull request; remove and re-add the label to
-  run again;
-- or start the workflow manually (`workflow_dispatch`, profile `smoke` or `full`) once it is on the
-  default branch.
+- checks out exactly the measured commit on a GitHub-hosted `ubuntu-24.04` runner;
+- installs Node.js from `.nvmrc` and runs `npm ci`;
+- generates and masks a one-time database password;
+- runs the script below within a 300-minute (full) or 45-minute (smoke) job limit;
+- scans the run log and the evidence for secrets before uploading the bundle as an artifact kept
+  for 14 days, and tears the benchmark project down.
 
-Ordinary pushes never start a benchmark. The job runs:
+**What the script permits and checks.** `load/scripts/benchmark.sh` does not check that it runs on
+GitHub Actions. On any host that meets the requirements below, it runs from a checkout of the
+commit to measure:
 
 ```bash
-PROFILE=full COMMIT_SHA=<40-character SHA> WORK_DIR=<absolute scratch directory> bash load/scripts/benchmark.sh
+PROFILE=full COMMIT_SHA="$(git rev-parse HEAD)" WORK_DIR=<absolute scratch directory> bash load/scripts/benchmark.sh
 ```
 
-It needs Docker with Compose, `sudo` for disk measurements and, for the full profile, the free disk
-space the guard computes (about 12 GiB on the runner above). It uploads the redacted, scanned
-evidence bundle as an artifact kept for 14 days.
+It refuses a `PROFILE` other than `smoke` or `full`, a `COMMIT_SHA` that is not 40 lowercase hex
+characters, and a relative `WORK_DIR`. It records `COMMIT_SHA` but does not compare it with the
+checked-out code, so run it from the commit it names. The full profile's disk guard refuses before
+seeding unless the projected peak plus 5 GiB fits in the free space. Every wait has a timeout, and on
+exit the script removes only the `umqs-bench` project's containers, volumes and networks. It also
+runs the secret scan and the error-log check itself; only the artifact upload is the workflow's.
+
+**What this document recommends.** Run benchmarks through the workflow. The script's header says
+"on a CI runner (never on a developer machine)"; that is a recommendation the script does not
+enforce. To run it elsewhere, use a disposable Linux machine: the script builds and pulls images,
+calls `sudo`, uses host networking, binds two loopback ports and, for the full profile, needs about
+12 GiB of free disk.
+
+**Requirements**, from the commands the committed scripts invoke:
+
+| Requirement                                                                                                                                                                         | Used for                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Linux host                                                                                                                                                                          | k6 runs with `docker run --network host`; disk usage is read from `/var/lib/docker`                            |
+| Docker Engine with the Compose v2 plugin (`docker compose`, including `up --wait`), usable by the current user without `sudo`                                                       | the isolated stack, the service image build and the k6 container (measured: Docker 28.0.4, Compose 2.38.2)     |
+| Non-interactive `sudo` for `du`                                                                                                                                                     | `sudo du -sb` of `/var/lib/docker` and of the benchmark volume                                                 |
+| Bash                                                                                                                                                                                | the script and its `bash -c` readiness waits                                                                   |
+| GNU coreutils: `timeout`, `df` (with `--output`), `du` (with `-b`), `date`, `sleep`, `seq`, `cut`, `tr`, `head`, `tail`, `wc`, `id`, `cat`, `cp`, `rm`, `mkdir`, `dirname`, `chmod` | bounded steps, disk sampling and measurement, file handling                                                    |
+| `sed`, `awk`, `grep` and `curl`                                                                                                                                                     | redacting k6 output, summarizing disk samples, the error-log check, the readiness wait                         |
+| OpenSSL                                                                                                                                                                             | a random database password when `BENCH_POSTGRES_PASSWORD` is not set                                           |
+| Node.js 22 (`engines`: `^22.13.0`) with dependencies installed by `npm ci`                                                                                                          | every `node --import tsx load/scripts/…` step (seed, invariants, EXPLAIN, footprint, disk guard, report, scan) |
+| Network access to Docker Hub and the npm registry                                                                                                                                   | the digest-pinned k6, PostgreSQL and Node base images, and `npm ci` inside the image build                     |
+| Free loopback ports 15432 and 18080                                                                                                                                                 | the benchmark PostgreSQL and service                                                                           |
+| Free disk space (full profile)                                                                                                                                                      | computed by the disk guard; about 12 GiB on the runner above                                                   |
+
+`psql` and `pg_isready` run inside the PostgreSQL container, so the host needs no PostgreSQL
+client.
