@@ -140,6 +140,35 @@ Implemented in `src/modules/consumption/`. Route → `consume.service.ts` (workf
 transaction boundary) → `consume.repository.ts` (SQL) → PostgreSQL; the rules live in the pure
 `consume.domain.ts`.
 
+### Consume workflow at a glance
+
+A visual summary only; the numbered steps and the failure handling below remain authoritative.
+
+```mermaid
+flowchart TD
+    Request["Authenticated consume request"]
+    Existing{"Stored decision exists?"}
+    Resolve["Replay it or return 409"]
+    Start["Fix the UTC month<br/>and begin a transaction"]
+    Snapshot["Read the user, account<br/>and plan snapshot"]
+    Lock["Create missing counters;<br/>lock account, then user"]
+    Recheck{"Decision appeared<br/>while waiting?"}
+    Evaluate["Evaluate user request, account request,<br/>user month, then account month"]
+    Apply["If accepted, increment both counters;<br/>otherwise leave them unchanged"]
+    Store["Store the decision and commit"]
+
+    Request --> Existing
+    Existing -->|Yes| Resolve
+    Existing -->|No| Start
+    Start --> Snapshot
+    Snapshot --> Lock
+    Lock --> Recheck
+    Recheck -->|Yes| Resolve
+    Recheck -->|No| Evaluate
+    Evaluate --> Apply
+    Apply --> Store
+```
+
 1. Authenticate and validate `userId` (UUID), `units` (JSON integer, 1 to 1,000,000,000) and
    `requestId` (1-128 of `[A-Za-z0-9._:-]`). Unknown fields are rejected; nothing is coerced.
    The `userId` is compared in lower case.
