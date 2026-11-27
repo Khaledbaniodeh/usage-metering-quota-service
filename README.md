@@ -289,6 +289,54 @@ Every request has a 10 second deadline, enforced with `AbortController`.
   prefix, request headers, the service's error message, or any other response content.
 - Every printed line also passes through a filter that replaces anything key-shaped.
 
+## Optional interview demo UI
+
+`demo/` holds a small browser page for demonstrating the service in an interview. It is optional
+and outside the service: it uses only the public HTTP API, adds no dependency, and the backend
+remains the source of truth for every validation, authentication, authorization, idempotency and
+quota decision.
+
+1. Start the backend: `docker compose up -d`
+2. Install packages if needed: `npm ci`
+3. Start the demo: `npm run demo`
+4. Open `http://127.0.0.1:3000`
+5. Stop the demo with Ctrl+C (the Compose stack keeps running).
+
+`npm run demo` starts [demo/main.js](demo/main.js), a Node 22 server built only on Node's
+built-in modules. It listens on `127.0.0.1`, serves the page from a fixed list of files in
+[demo/public/](demo/public/), and forwards `/health/live`, `/health/ready` and `/v1/*` unchanged to
+the API, so the browser talks to a single origin and the service needs no CORS settings. Every
+other path is refused. Swagger remains available at `http://127.0.0.1:8080/docs`.
+
+The page walks through the API step by step: health checks; creating an account (or using an
+existing key); listing plans, creating and updating a custom plan and assigning the account plan;
+creating, listing and reading users and assigning a user plan; consuming units with a generated
+`requestId`, replaying the same request (the response is compared byte for byte) and reusing the
+`requestId` with other units to show `409 IDEMPOTENCY_CONFLICT`; and account usage, user usage,
+every user's usage and the decision history, with a "Load next page" button that follows
+`nextCursor`.
+
+| Variable            | Default                 | Meaning                                                            |
+| ------------------- | ----------------------- | ------------------------------------------------------------------ |
+| `DEMO_HOST`         | `127.0.0.1`             | Listening address; loopback only (`127.x.x.x`, `::1`, `localhost`) |
+| `DEMO_PORT`         | `3000`                  | Listening port                                                     |
+| `DEMO_API_BASE_URL` | `http://127.0.0.1:8080` | The API's origin (set it when `API_HOST_PORT` changes)             |
+
+Invalid configuration stops the demo with exit code 2; an occupied port with exit code 1.
+
+- **API keys stay in the browser's memory.** The key returned at account creation is shown only
+  then, masked by default, with Reveal, Copy and Clear controls; a pasted key is checked with
+  `GET /v1/account` and kept only if the service accepts it. Keys are never written to
+  localStorage, sessionStorage, cookies or URLs, and refreshing the page forgets them.
+- **The demo server only relays.** It forwards `X-API-Key` only to the configured API, drops
+  cookies and other credentials, and logs one line per request with the method, path and status:
+  never headers, keys, query strings or bodies.
+- **The demo creates data and never deletes it.** Each account, plan, user and decision it creates
+  stays in the database, like the example client's.
+
+Its tests run with the other unit tests (`npm run test:unit`, or only these with
+`npx vitest run --project unit tests/unit/demo`).
+
 ## Main design decisions
 
 Details and the reasoning behind each are in [docs/architecture.md](docs/architecture.md).
@@ -405,6 +453,7 @@ npm run dev
 | `npm run test:e2e`         | The end-to-end check of one example-client run (needs a running stack)  |
 | `npm run client:example`   | Run the example client from the host against `API_BASE_URL`             |
 | `npm run build:client`     | Compile the example client to `dist/client/` (used by its image)        |
+| `npm run demo`             | Start the optional interview demo UI on `http://127.0.0.1:3000`         |
 | `npm run format:check`     | Verify Prettier formatting (`npm run format` applies it)                |
 | `npm run lint`             | ESLint (type-aware, security rules) with zero warnings allowed          |
 | `npm run typecheck`        | TypeScript type-check of source, tests and tooling config               |
