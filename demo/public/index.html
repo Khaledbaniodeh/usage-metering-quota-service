@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Usage Metering and Quota Service: interview demo</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to the demo steps</a>
+
+    <header class="page-header">
+      <div class="page-header-inner">
+        <div>
+          <h1>Usage Metering and Quota Service</h1>
+          <p class="subtitle">
+            Interview demo client: every action is a real call to the public HTTP API.
+          </p>
+        </div>
+        <p class="header-links">
+          Swagger UI: <a href="http://127.0.0.1:8080/docs" rel="noreferrer">127.0.0.1:8080/docs</a>
+        </p>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <nav aria-label="Demo steps">
+          <ol class="step-nav">
+            <li><a href="#status">System status</a></li>
+            <li><a href="#account">Account</a></li>
+            <li><a href="#plans">Plans</a></li>
+            <li><a href="#users">Users</a></li>
+            <li><a href="#consume">Consume</a></li>
+            <li><a href="#usage">Usage and history</a></li>
+            <li><a href="#about">About this demo</a></li>
+          </ol>
+        </nav>
+
+        <section class="session" aria-labelledby="session-title">
+          <h2 id="session-title">Session</h2>
+          <dl class="session-list">
+            <div>
+              <dt>API</dt>
+              <dd id="session-api"><span class="pill pill-muted">Not checked</span></dd>
+            </div>
+            <div>
+              <dt>Account</dt>
+              <dd id="session-account">None</dd>
+            </div>
+            <div>
+              <dt>API key</dt>
+              <dd id="session-key">Not in memory</dd>
+            </div>
+            <div>
+              <dt>Active user</dt>
+              <dd id="session-user">None</dd>
+            </div>
+          </dl>
+        </section>
+      </aside>
+
+      <main id="main" tabindex="-1">
+        <noscript>
+          <p class="notice notice-error">This demo needs JavaScript to call the API.</p>
+        </noscript>
+
+        <!-- 1. System status -->
+        <section id="status" class="card" aria-labelledby="status-title">
+          <header class="card-header">
+            <h2 id="status-title"><span class="step-number">1</span>System status</h2>
+            <p>Liveness and readiness of the API, checked through the demo server.</p>
+          </header>
+          <div class="button-row">
+            <button type="button" id="health-check">Check health</button>
+          </div>
+          <div class="tiles">
+            <article class="tile" id="health-live" aria-live="polite">
+              <h3>Liveness</h3>
+              <p class="mono muted">GET /health/live</p>
+              <p class="tile-state"><span class="pill pill-muted">Not checked</span></p>
+              <p class="tile-detail"></p>
+            </article>
+            <article class="tile" id="health-ready" aria-live="polite">
+              <h3>Readiness</h3>
+              <p class="mono muted">GET /health/ready</p>
+              <p class="tile-state"><span class="pill pill-muted">Not checked</span></p>
+              <p class="tile-detail"></p>
+            </article>
+          </div>
+        </section>
+
+        <!-- 2. Account setup -->
+        <section id="account" class="card" aria-labelledby="account-title">
+          <header class="card-header">
+            <h2 id="account-title"><span class="step-number">2</span>Account setup</h2>
+            <p>
+              Create a new account (public endpoint) or use an existing API key. The key is kept
+              only in this page's memory.
+            </p>
+          </header>
+          <div class="columns">
+            <form id="account-create-form" class="panel" novalidate autocomplete="off">
+              <h3>Create a demo account</h3>
+              <label for="account-name">Account name</label>
+              <input id="account-name" name="name" type="text" spellcheck="false" />
+              <p class="hint">
+                <code>POST /v1/accounts</code> · a new account starts on the Starter plan.
+              </p>
+              <button type="submit">Create account</button>
+            </form>
+            <form id="account-key-form" class="panel" novalidate autocomplete="off">
+              <h3>Or use an existing API key</h3>
+              <label for="existing-key">API key</label>
+              <input
+                id="existing-key"
+                name="existing-key"
+                type="text"
+                class="secret-input"
+                autocomplete="off"
+                spellcheck="false"
+                autocapitalize="off"
+                data-1p-ignore
+                data-lpignore="true"
+              />
+              <p class="hint">
+                Checked with <code>GET /v1/account</code>. The field is cleared at once; the key is
+                kept in memory only if the service accepts it.
+              </p>
+              <button type="submit">Use this key</button>
+            </form>
+          </div>
+
+          <div id="key-panel" class="panel key-panel" hidden>
+            <h3>API key in memory</h3>
+            <p class="key-value"><code id="key-display"></code></p>
+            <div class="button-row">
+              <button type="button" id="key-reveal" aria-pressed="false">Reveal</button>
+              <button type="button" id="key-copy">Copy</button>
+              <button type="button" id="key-clear" class="button-danger">Clear</button>
+            </div>
+            <p class="hint" id="key-hint"></p>
+            <p class="hint" id="key-status" role="status"></p>
+          </div>
+
+          <div id="account-result" class="result" aria-live="polite"></div>
+          <p class="request-line" id="account-request"></p>
+        </section>
+
+        <!-- 3. Plans -->
+        <section id="plans" class="card" aria-labelledby="plans-title">
+          <header class="card-header">
+            <h2 id="plans-title"><span class="step-number">3</span>Plans</h2>
+            <p>
+              Predefined plans are shared and read-only; custom plans belong to this account. The
+              API checks ownership and scope on every change.
+            </p>
+          </header>
+          <div class="button-row">
+            <button type="button" id="plans-load" data-needs-key>Load plans</button>
+          </div>
+          <div id="plans-result" class="result" aria-live="polite"></div>
+
+          <div class="columns columns-3">
+            <form id="plan-create-form" class="panel" novalidate autocomplete="off">
+              <h3>Create a custom plan</h3>
+              <label for="plan-create-name">Name</label>
+              <input id="plan-create-name" type="text" value="Shared cap" spellcheck="false" />
+              <label for="plan-create-scope">Scope</label>
+              <select id="plan-create-scope">
+                <option value="ACCOUNT">ACCOUNT (shared by the account)</option>
+                <option value="USER">USER (per user)</option>
+              </select>
+              <label for="plan-create-allowance">Monthly allowance</label>
+              <input id="plan-create-allowance" type="number" inputmode="numeric" value="50" />
+              <label for="plan-create-max">Max units per request</label>
+              <input id="plan-create-max" type="number" inputmode="numeric" value="100" />
+              <p class="hint"><code>POST /v1/plans</code></p>
+              <button type="submit" data-needs-key>Create plan</button>
+            </form>
+
+            <form id="plan-update-form" class="panel" novalidate autocomplete="off">
+              <h3>Update a custom plan</h3>
+              <label for="plan-update-id">Plan</label>
+              <select id="plan-update-id" data-plan-select></select>
+              <label for="plan-update-name">New name (optional)</label>
+              <input id="plan-update-name" type="text" spellcheck="false" />
+              <label for="plan-update-allowance">New monthly allowance (optional)</label>
+              <input id="plan-update-allowance" type="number" inputmode="numeric" />
+              <label for="plan-update-max">New max units per request (optional)</label>
+              <input id="plan-update-max" type="number" inputmode="numeric" />
+              <p class="hint">
+                <code>PATCH /v1/plans/{planId}</code> · only filled fields are sent. Predefined
+                plans are read-only (the API answers 409).
+              </p>
+              <button type="submit" data-needs-key data-needs-plans>Update plan</button>
+            </form>
+
+            <form id="account-plan-form" class="panel" novalidate autocomplete="off">
+              <h3>Assign the account plan</h3>
+              <label for="account-plan-id">Plan</label>
+              <select id="account-plan-id" data-plan-select></select>
+              <p class="hint">
+                <code>PUT /v1/account/plan</code> · a USER plan is refused by the API (409).
+              </p>
+              <button type="submit" data-needs-key data-needs-plans>Assign to account</button>
+            </form>
+          </div>
+          <div id="plans-action-result" class="result" aria-live="polite"></div>
+          <p class="request-line" id="plans-request"></p>
+        </section>
+
+        <!-- 4. Users -->
+        <section id="users" class="card" aria-labelledby="users-title">
+          <header class="card-header">
+            <h2 id="users-title"><span class="step-number">4</span>Users</h2>
+            <p>Users of this account. New users start on the Basic plan.</p>
+          </header>
+          <div class="columns columns-3">
+            <form id="user-create-form" class="panel" novalidate autocomplete="off">
+              <h3>Create a user</h3>
+              <label for="user-name">Name</label>
+              <input id="user-name" type="text" value="Ada" spellcheck="false" />
+              <p class="hint"><code>POST /v1/users</code> · the new user becomes active.</p>
+              <button type="submit" data-needs-key>Create user</button>
+            </form>
+
+            <form id="user-get-form" class="panel" novalidate autocomplete="off">
+              <h3>Read one user</h3>
+              <label for="user-get-id">User ID</label>
+              <input id="user-get-id" type="text" class="mono" spellcheck="false" />
+              <p class="hint">
+                <code>GET /v1/users/{userId}</code> · try an ID from another account: same 404 as an
+                unknown ID.
+              </p>
+              <button type="submit" data-needs-key>Get user</button>
+            </form>
+
+            <form id="user-plan-form" class="panel" novalidate autocomplete="off">
+              <h3>Assign the active user's plan</h3>
+              <label for="user-plan-id">Plan</label>
+              <select id="user-plan-id" data-plan-select></select>
+              <p class="hint">
+                <code>PUT /v1/users/{userId}/plan</code> · an ACCOUNT plan is refused by the API
+                (409).
+              </p>
+              <button type="submit" data-needs-key data-needs-user data-needs-plans>
+                Assign to active user
+              </button>
+            </form>
+          </div>
+          <div id="user-result" class="result" aria-live="polite"></div>
+
+          <div class="list-header">
+            <h3>Users list</h3>
+            <div class="button-row">
+              <label class="inline-label" for="users-limit">Page size</label>
+              <select id="users-limit" class="select-small">
+                <option value="2">2</option>
+                <option value="5" selected>5</option>
+                <option value="20">20</option>
+              </select>
+              <button type="button" id="users-load" data-needs-key>Load users</button>
+              <button type="button" id="users-next" data-needs-key class="button-secondary">
+                Load next page
+              </button>
+            </div>
+          </div>
+          <div id="users-list" class="result" aria-live="polite"></div>
+          <p class="request-line" id="users-request"></p>
+        </section>
+
+        <!-- 5. Consume -->
+        <section id="consume" class="card" aria-labelledby="consume-title">
+          <header class="card-header">
+            <h2 id="consume-title"><span class="step-number">5</span>Consume</h2>
+            <p>
+              Ask the service whether the active user may consume units now. Every decision is HTTP
+              200, accepted or rejected.
+            </p>
+          </header>
+          <div class="columns">
+            <form id="consume-form" class="panel" novalidate autocomplete="off">
+              <h3>New request</h3>
+              <label for="consume-user">Active user</label>
+              <select id="consume-user" data-user-select></select>
+              <label for="consume-units">Units</label>
+              <input id="consume-units" type="number" inputmode="numeric" value="10" />
+              <label for="consume-request-id">requestId (idempotency key)</label>
+              <div class="input-with-button">
+                <input id="consume-request-id" type="text" class="mono" spellcheck="false" />
+                <button type="button" id="consume-new-id" class="button-secondary">New</button>
+              </div>
+              <p class="hint" id="consume-request-id-advice" aria-live="polite"></p>
+              <button type="submit" data-needs-key data-needs-user>Consume units</button>
+            </form>
+            <div class="panel">
+              <h3>Replay</h3>
+              <p class="hint">
+                Sends the previous request again, unchanged: same requestId, user and units. The
+                service returns the stored decision and counts nothing again.
+              </p>
+              <p class="mono replay-target" id="consume-replay-target">No request sent yet.</p>
+              <button type="button" id="consume-replay" data-needs-key data-needs-replay>
+                Replay same request
+              </button>
+              <p class="hint">
+                To see an idempotency conflict, keep the requestId and change the units, then
+                submit.
+              </p>
+            </div>
+          </div>
+          <div id="consume-result" class="result" aria-live="polite"></div>
+          <p class="request-line" id="consume-request"></p>
+        </section>
+
+        <!-- 6. Usage and history -->
+        <section id="usage" class="card" aria-labelledby="usage-title">
+          <header class="card-header">
+            <h2 id="usage-title"><span class="step-number">6</span>Usage and history</h2>
+            <p>Monthly usage (UTC months) and the stored decisions, newest first.</p>
+          </header>
+          <div class="toolbar">
+            <div class="field">
+              <label for="usage-month">Month (YYYY-MM, empty = current)</label>
+              <input id="usage-month" type="text" class="mono" placeholder="YYYY-MM" />
+            </div>
+            <div class="field">
+              <label for="usage-limit">Page size</label>
+              <select id="usage-limit">
+                <option value="2">2</option>
+                <option value="5" selected>5</option>
+                <option value="20">20</option>
+              </select>
+            </div>
+            <div class="field field-check">
+              <input id="history-only-user" type="checkbox" />
+              <label for="history-only-user">History of the active user only</label>
+            </div>
+          </div>
+          <div class="button-row">
+            <button type="button" id="usage-account" data-needs-key>Account usage</button>
+            <button type="button" id="usage-user" data-needs-key data-needs-user>
+              Active user usage
+            </button>
+            <button type="button" id="usage-users" data-needs-key>Users' usage</button>
+            <button type="button" id="history-load" data-needs-key>Decision history</button>
+          </div>
+          <div class="tiles" id="usage-cards" aria-live="polite"></div>
+
+          <div class="list-header">
+            <h3>Users' usage</h3>
+            <button type="button" id="usage-users-next" data-needs-key class="button-secondary">
+              Load next page
+            </button>
+          </div>
+          <div id="usage-users-list" class="result" aria-live="polite"></div>
+
+          <div class="list-header">
+            <h3>Decision history</h3>
+            <button type="button" id="history-next" data-needs-key class="button-secondary">
+              Load next page
+            </button>
+          </div>
+          <div id="history-list" class="result" aria-live="polite"></div>
+          <p class="request-line" id="usage-request"></p>
+        </section>
+
+        <!-- 7. About -->
+        <section id="about" class="card card-note" aria-labelledby="about-title">
+          <header class="card-header">
+            <h2 id="about-title"><span class="step-number">7</span>About this demo</h2>
+          </header>
+          <p class="note-text">
+            This interface is an external demonstration client. All validation, authentication,
+            authorization, idempotency and quota enforcement remain in the backend service.
+          </p>
+          <ul class="note-list">
+            <li>
+              The page talks only to the local demo server, which forwards
+              <code>/health/live</code>, <code>/health/ready</code> and <code>/v1/*</code> to the
+              API unchanged.
+            </li>
+            <li>
+              The API key lives only in this page's memory: no storage, cookies or URLs. Refreshing
+              the page forgets it.
+            </li>
+            <li>The demo creates accounts, plans, users and decisions; it never deletes data.</li>
+          </ul>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
