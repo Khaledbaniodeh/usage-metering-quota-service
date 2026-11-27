@@ -27,7 +27,21 @@ async function main() {
     throw error;
   }
 
+  // The shutdown handlers exist before the server listens, so no SIGINT or SIGTERM can arrive
+  // while the demo is reachable or has printed its address but cannot yet stop cleanly.
   let server;
+  let stopSignal;
+  const { promise: stopped, resolve: markStopped } = Promise.withResolvers();
+  const stop = (signal) => {
+    stopSignal = signal;
+    out(`Received ${signal}; stopping the demo server.`);
+    if (server !== undefined) {
+      void server.close().then(markStopped);
+    }
+  };
+  process.once("SIGINT", stop);
+  process.once("SIGTERM", stop);
+
   try {
     server = await startDemoServer(config, { log: (line) => out(`[demo] ${line}`) });
   } catch (error) {
@@ -40,19 +54,16 @@ async function main() {
     return 1;
   }
 
-  out(`Interview demo UI: ${server.url}`);
-  out(`Forwarding /health/live, /health/ready and /v1/* to ${config.apiBaseUrl}`);
-  out("API keys stay in the browser's memory; this server never logs or stores them.");
-  out("Press Ctrl+C to stop.");
-
-  await new Promise((resolve) => {
-    const stop = (signal) => {
-      out(`Received ${signal}; stopping the demo server.`);
-      void server.close().then(resolve);
-    };
-    process.once("SIGINT", stop);
-    process.once("SIGTERM", stop);
-  });
+  if (stopSignal === undefined) {
+    out(`Interview demo UI: ${server.url}`);
+    out(`Forwarding /health/live, /health/ready and /v1/* to ${config.apiBaseUrl}`);
+    out("API keys stay in the browser's memory; this server never logs or stores them.");
+    out("Press Ctrl+C to stop.");
+    await stopped;
+  } else {
+    // A signal arrived while the server was starting: stop without announcing it.
+    await server.close();
+  }
   out("Demo server stopped.");
   return 0;
 }
